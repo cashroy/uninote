@@ -1,0 +1,33 @@
+name: Release
+
+# Push a version tag (e.g. v1.5.0) to build and publish a release.
+# electron-builder uploads the installer, portable exe, and latest.yml
+# (the feed electron-updater reads) to the GitHub Release.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build renderer
+        run: npm run build:renderer
+
+      - name: Build and publish
+        run: npx electron-builder --win --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
