@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UniNote — AI-powered uni notes</title>
+<meta name="description" content="Organise your university notes by year, semester and paper. Claude files your uploads, writes study sheets, builds tests, tracks deadlines and your timetable." />
+<link rel="icon" href="icon.png" />
+<style>
+  :root{
+    --bg:#0f0f13; --panel:#17171b; --panel2:#1f1f26; --line:#2c2c35;
+    --ink:#f4f4f5; --ink2:#a1a1aa; --accent:#f5f3ef; --accent2:#c46a2a;
+    --radius:14px; --sans:"Segoe UI",system-ui,-apple-system,sans-serif; --serif:Georgia,serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:12px;padding:22px 0}
+  header .logo{width:38px;height:38px;border-radius:9px}
+  header .name{font-family:var(--serif);font-size:22px;letter-spacing:.3px}
+  header .name b{color:var(--accent2);font-style:italic;font-weight:400}
+  header nav{margin-left:auto;display:flex;gap:20px;font-size:14px;color:var(--ink2)}
+  header nav a{text-decoration:none}
+  header nav a:hover{color:var(--ink)}
+
+  .hero{text-align:center;padding:70px 0 40px}
+  .hero .badge{display:inline-block;font-size:12px;color:var(--ink2);border:1px solid var(--line);border-radius:20px;padding:5px 14px;margin-bottom:22px}
+  .hero h1{font-family:var(--serif);font-size:56px;line-height:1.05;margin:0 0 18px}
+  .hero h1 .grad{background:linear-gradient(90deg,#fff,#c46a2a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{font-size:19px;color:var(--ink2);max-width:640px;margin:0 auto 30px}
+  .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:11px;padding:13px 24px;font-size:15px;font-weight:600;text-decoration:none;border:1px solid var(--line);color:var(--ink);background:var(--panel)}
+  .btn:hover{border-color:#40404a}
+  .btn.primary{background:var(--accent);color:#111;border-color:var(--accent)}
+  .btn.primary:hover{background:#fff}
+  .ver{font-size:13px;color:var(--ink2);margin-top:14px}
+
+  .shot{margin:46px auto 0;max-width:900px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--panel)}
+  .shot .bar{height:34px;background:var(--panel2);display:flex;align-items:center;gap:7px;padding:0 13px;border-bottom:1px solid var(--line)}
+  .shot .bar i{width:11px;height:11px;border-radius:50%;background:#3a3a44;display:inline-block}
+  .shot .mock{display:grid;grid-template-columns:150px 1fr 130px;height:280px}
+  .shot .mc{padding:14px}
+  .shot .sb{background:#121216;border-right:1px solid var(--line)}
+  .shot .sb .row{height:9px;background:#26262e;border-radius:5px;margin:9px 4px}
+  .shot .sb .row.a{background:var(--accent2);opacity:.8;width:70%}
+  .shot .bd h4{font-family:var(--serif);margin:2px 0 14px;font-size:16px}
+  .shot .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .shot .card{background:var(--panel2);border:1px solid var(--line);border-radius:9px;height:58px}
+  .shot .ch{background:#121216;border-left:1px solid var(--line)}
+  .shot .ch .b{height:34px;background:#22222a;border-radius:8px;margin:8px 4px}
+
+  section.features{padding:74px 0 20px}
+  h2.section{font-family:var(--serif);font-size:30px;text-align:center;margin:0 0 8px}
+  .sub{ text-align:center;color:var(--ink2);margin:0 0 40px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .feat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+  .feat .ic{font-size:24px}
+  .feat h3{margin:12px 0 6px;font-size:16px}
+  .feat p{margin:0;color:var(--ink2);font-size:13.5px}
+
+  section.updates{padding:64px 0}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:28px;text-align:center}
+  .panel h2{font-family:var(--serif);margin:0 0 8px}
+  .panel p{color:var(--ink2);margin:0 auto 6px;max-width:620px}
+  code{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:13px}
+
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:26px 0;color:var(--ink2);font-size:13px;text-align:center}
+  @media(max-width:760px){.hero h1{font-size:38px}.grid{grid-template-columns:1fr}.shot .mock{grid-template-columns:1fr}.shot .sb,.shot .ch{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="icon.png" class="logo" alt="UniNote" />
+    <div class="name"><b>Uni</b>Note</div>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#get">Download</a>
+      <a id="nav-gh" href="#">GitHub</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <span class="badge">✦ Your degree, organised by AI</span>
+    <h1>Every lecture, note and deadline<br /><span class="grad">in one calm place.</span></h1>
+    <p>UniNote sorts your uploads with Claude, writes study sheets and flashcards, builds tests from your material, and keeps your timetable and deadlines straight — all on your own Claude account.</p>
+    <div class="cta">
+      <a class="btn primary" id="dl-setup" href="#get">⬇ Download for Windows</a>
+      <a class="btn" id="dl-portable" href="#get">Portable version</a>
+    </div>
+    <div class="ver" id="ver">Loading latest release…</div>
+  </div>
+
+  <div class="shot">
+    <div class="bar"><i></i><i></i><i></i></div>
+    <div class="mock">
+      <div class="mc sb">
+        <div class="row a"></div><div class="row"></div><div class="row"></div>
+        <div class="row"></div><div class="row"></div><div class="row"></div>
+      </div>
+      <div class="mc bd">
+        <h4>STAT201 — Statistical Modelling</h4>
+        <div class="cards"><div class="card"></div><div class="card"></div><div class="card"></div><div class="card"></div></div>
+      </div>
+      <div class="mc ch">
+        <div class="b"></div><div class="b"></div><div class="b"></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="features" id="features">
+    <h2 class="section">Built for actually studying</h2>
+    <p class="sub">Not another folder full of PDFs.</p>
+    <div class="grid">
+      <div class="feat"><div class="ic">🗂️</div><h3>AI filing</h3><p>Drop any file — Claude tells you what it is, you confirm, and it lands in the right place.</p></div>
+      <div class="feat"><div class="ic">✨</div><h3>Summaries &amp; flashcards</h3><p>Turn any document into a study sheet, outline, or spaced-repetition flashcard deck.</p></div>
+      <div class="feat"><div class="ic">📝</div><h3>Tests from your notes</h3><p>Pick what a test covers and Claude builds study material — matched to a past paper.</p></div>
+      <div class="feat"><div class="ic">📅</div><h3>Calendar &amp; timetable</h3><p>Import your timetable, track every due date, and ask Claude to add breaks or set term dates.</p></div>
+      <div class="feat"><div class="ic">🔍</div><h3>Search everything</h3><p>One search across papers, notes, summaries and side notes — content and all.</p></div>
+      <div class="feat"><div class="ic">🔐</div><h3>Your account, your files</h3><p>Runs on your Claude subscription. Notes stay on your PC as plain folders.</p></div>
+    </div>
+  </section>
+
+  <section class="updates" id="get">
+    <div class="panel">
+      <h2>Download &amp; auto-updates</h2>
+      <p>Install once and UniNote keeps itself up to date — it checks here on every launch and installs new versions in the background.</p>
+      <p style="margin-top:14px">
+        <a class="btn primary" id="dl-setup2" href="#">⬇ Installer (.exe)</a>
+        <a class="btn" id="dl-portable2" href="#">Portable (.exe)</a>
+      </p>
+      <p style="margin-top:16px;font-size:12.5px">Unsigned build — Windows may show “More info → Run anyway”. All releases: <a id="all-rel" href="#">GitHub Releases</a>.</p>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">UniNote · made with Claude · <a id="gh-foot" href="#">source on GitHub</a></div>
+</footer>
+
+<script>
+  // Configured automatically at deploy time (see below). Falls back to placeholders.
+  const OWNER = "cashroy";
+  const REPO = "uninote";
+  const repoUrl = `https://github.com/${OWNER}/${REPO}`;
+  document.querySelectorAll("#nav-gh,#gh-foot").forEach(a => a.href = repoUrl);
+  document.getElementById("all-rel").href = `${repoUrl}/releases`;
+
+  const setLinks = (setup, portable) => {
+    for (const id of ["dl-setup","dl-setup2"]) document.getElementById(id).href = setup || `${repoUrl}/releases/latest`;
+    for (const id of ["dl-portable","dl-portable2"]) document.getElementById(id).href = portable || `${repoUrl}/releases/latest`;
+  };
+
+  fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`)
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(rel => {
+      document.getElementById("ver").textContent = `Latest: ${rel.tag_name} · ${new Date(rel.published_at).toLocaleDateString()}`;
+      const setup = (rel.assets.find(a => /Setup.*\.exe$/i.test(a.name)) || {}).browser_download_url;
+      const portable = (rel.assets.find(a => /Portable.*\.exe$/i.test(a.name)) || {}).browser_download_url;
+      setLinks(setup, portable);
+    })
+    .catch(() => {
+      document.getElementById("ver").textContent = "Set OWNER/REPO in docs/index.html to show the latest release.";
+      setLinks(null, null);
+    });
+</script>
+</body>
+</html>
