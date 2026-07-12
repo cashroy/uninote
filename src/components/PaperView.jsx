@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { fileIcon, fmtDate, dueInfo, CATEGORY_ICONS, WEEKS } from "../util.js";
 import MarkdownModal from "./MarkdownModal.jsx";
 import SummarizeDialog from "./SummarizeDialog.jsx";
+import FormulaSheetModal from "./FormulaSheetModal.jsx";
 import NoteEditor from "./NoteEditor.jsx";
 import Scratchpad from "./Scratchpad.jsx";
 import FlashcardReview from "./FlashcardReview.jsx";
@@ -102,6 +103,7 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
   const [reviewing, setReviewing] = useState(null); // summary
   const [viewingDoc, setViewingDoc] = useState(null); // doc opened in viewer
   const [weekFilter, setWeekFilter] = useState(null); // number | "none" | null
+  const [formulaSheet, setFormulaSheet] = useState(false);
 
   let paper = null;
   let crumbs = "";
@@ -128,6 +130,13 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
   const byCategory = {};
   for (const d of filtered) (byCategory[d.category] || (byCategory[d.category] = [])).push(d);
 
+  // Render categories in the known order, then any leftover (e.g. a just-added
+  // custom category) so nothing a user files is ever hidden.
+  const orderedCats = [
+    ...lib.categories.filter((c) => byCategory[c]?.length),
+    ...Object.keys(byCategory).filter((c) => !lib.categories.includes(c)),
+  ];
+
   return (
     <div className="paper-layout">
       <div className="view">
@@ -141,6 +150,9 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
           <div className="header-actions">
             <button className="btn" onClick={() => setEditingNote("new")}>
               🗒️ New note
+            </button>
+            <button className="btn" onClick={() => setFormulaSheet(true)} title="Make or update an AI formula sheet from everything in this paper">
+              📐 Formula sheet
             </button>
             <button
               className="btn primary"
@@ -180,8 +192,7 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
           </div>
         )}
 
-        {lib.categories
-          .filter((c) => byCategory[c] && byCategory[c].length)
+        {orderedCats
           .map((cat) => (
             <section key={cat} className="category-section">
               <h2>
@@ -233,6 +244,9 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
       )}
       {reviewing && <FlashcardReview summary={reviewing} onClose={() => setReviewing(null)} />}
       {viewingDoc && <DocumentViewer doc={viewingDoc} onClose={() => setViewingDoc(null)} />}
+      {formulaSheet && (
+        <FormulaSheetModal paperId={paperId} paperLabel={paper.code} onClose={() => setFormulaSheet(false)} />
+      )}
     </div>
   );
 }

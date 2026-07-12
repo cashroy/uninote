@@ -393,6 +393,28 @@ function saveSidenote(paperId, content) {
   return true;
 }
 
+// ---- per-paper formula sheet (AI generated, regenerated in place) ----------
+
+function formulaSheetPath(paperId) {
+  const db = load();
+  return path.join(paperDir(db, paperId), "_FormulaSheet.md");
+}
+
+function getFormulaSheet(paperId) {
+  try {
+    return fs.readFileSync(formulaSheetPath(paperId), "utf8");
+  } catch {
+    return "";
+  }
+}
+
+function saveFormulaSheet(paperId, content) {
+  const p = formulaSheetPath(paperId);
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, content, "utf8");
+  return true;
+}
+
 // ---- flashcard review state ------------------------------------------------
 
 function getFlashState(summaryId) {
@@ -554,6 +576,8 @@ module.exports = {
   getSidenote,
   saveSidenote,
   sidenotePath,
+  getFormulaSheet,
+  saveFormulaSheet,
   getFlashState,
   saveFlashState,
   createTest,

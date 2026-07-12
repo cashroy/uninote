@@ -261,6 +261,29 @@ ${parts.join("\n\n")}`;
   });
 }
 
+// ---- formula sheet --------------------------------------------------------
+
+// Reads every document in a paper and builds one consolidated formula sheet.
+async function generateFormulaSheet(paper, docs, onDelta) {
+  const parts = docs.map(
+    (d) => `### ${d.fileName} (${d.category})\n"""\n${truncate(indexer.readDocText(d), 24000)}\n"""`
+  );
+  const title = `${paper.code}${paper.name ? " " + paper.name : ""}`;
+  const prompt = `Build a single, comprehensive FORMULA SHEET for the university paper "${title}", pulling together everything examinable from the material below.
+
+Include every formula, equation, identity, key definition, rule, theorem, constant and important result you can find. Organise it by topic with clear Markdown headings. For each formula: show it clearly (use LaTeX-style notation where it helps), define what each symbol means, and add a short note on when or how to use it. Be exhaustive but compact — this is a one-stop revision reference, not prose. No narrative introduction or conclusion.
+
+Course material:
+${parts.join("\n\n") || "(No readable text was extracted — infer the standard formulas a course with this code/name would cover, and say so at the top.)"}`;
+
+  return claude.complete({
+    system: "You are an expert academic tutor assembling a rigorous, exhaustive exam formula sheet in clean Markdown.",
+    prompt,
+    maxTokens: 32000,
+    onDelta,
+  });
+}
+
 // ---- chat -----------------------------------------------------------------
 
 async function chat(scope, question, history, onDelta) {
@@ -319,4 +342,4 @@ ${historyBlock ? `Conversation so far:\n${historyBlock}\n\n` : ""}Student's ques
   return { text, contextSource };
 }
 
-module.exports = { classify, summarize, generateTestMaterial, chat, parseTimetable, assistTimetable, SUMMARY_MODES };
+module.exports = { classify, summarize, generateTestMaterial, generateFormulaSheet, chat, parseTimetable, assistTimetable, SUMMARY_MODES };

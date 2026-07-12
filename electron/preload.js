@@ -60,6 +60,11 @@ contextBridge.exposeInMainWorld("uninote", {
   getSidenote: (paperId) => ipcRenderer.invoke("sidenote:get", paperId),
   saveSidenote: (paperId, content) => ipcRenderer.invoke("sidenote:save", paperId, content),
 
+  // formula sheet (per paper)
+  getFormulaSheet: (paperId) => ipcRenderer.invoke("paper:getFormulaSheet", paperId),
+  generateFormulaSheet: (paperId) => ipcRenderer.invoke("paper:formulaSheet", paperId),
+  onFormulaDelta: on("formula:delta"),
+
   // timetable
   getTimetable: () => ipcRenderer.invoke("timetable:get"),
   saveTimetable: (entries) => ipcRenderer.invoke("timetable:save", entries),

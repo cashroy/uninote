@@ -119,7 +119,9 @@ ipcMain.handle("setup:testClaude", () => claude.testClaudeCode());
 
 ipcMain.handle("lib:get", () => {
   const db = library.load();
-  return { ...db, categories: library.CATEGORIES, libraryPath: library.libRoot() };
+  // allCategories() includes user-added custom categories, so documents filed
+  // under a new category actually render in the paper view.
+  return { ...db, categories: library.allCategories(db), libraryPath: library.libRoot() };
 });
 
 ipcMain.handle("lib:addYear", (_e, name) => library.addYear(name));
@@ -278,6 +280,27 @@ ipcMain.handle("timetable:parseFile", async (_e, filePath) => {
   try {
     const entries = await ai.parseTimetable(text);
     return { ok: true, entries };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+
+// ---- formula sheet (per-paper, AI generated) ----------------------------------
+
+ipcMain.handle("paper:getFormulaSheet", (_e, paperId) => library.getFormulaSheet(paperId));
+
+ipcMain.handle("paper:formulaSheet", async (_e, paperId) => {
+  const db = library.load();
+  const hit = library.findPaper(db, paperId);
+  if (!hit) return { ok: false, error: "Paper not found." };
+  const docs = db.docs.filter((d) => d.paperId === paperId);
+  if (!docs.length) return { ok: false, error: "Add some material to this paper first, then Claude can build a formula sheet from it." };
+  try {
+    const md = await ai.generateFormulaSheet(hit.paper, docs, (t) =>
+      send("formula:delta", { paperId, text: t })
+    );
+    library.saveFormulaSheet(paperId, md);
+    return { ok: true, content: md };
   } catch (err) {
     return { ok: false, error: err.message || String(err) };
   }
