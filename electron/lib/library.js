@@ -70,6 +70,7 @@ function normEntry(e) {
     title: e.title || "Class",
     location: e.location || "",
     type: e.type || "",
+    color: e.color || "",
   };
 }
 
@@ -124,32 +125,14 @@ function updateTimetableEntry(entryId, patch) {
 // Replaces the whole timetable with the given entries (assigns ids/dayIndex).
 function saveTimetable(entries) {
   const db = load();
-  db.timetable.entries = (entries || []).map((e) => ({
-    id: e.id || id(),
-    dayIndex: e.dayIndex != null ? e.dayIndex : dayIndexOf(e.day),
-    day: e.day || DAYS[e.dayIndex != null ? e.dayIndex : 0],
-    start: e.start || "",
-    end: e.end || "",
-    title: e.title || "Class",
-    location: e.location || "",
-    type: e.type || "",
-  }));
+  db.timetable.entries = (entries || []).map(normEntry);
   save(db);
   return db.timetable.entries;
 }
 
 function addTimetableEntry(entry) {
   const db = load();
-  const e = {
-    id: id(),
-    dayIndex: entry.dayIndex != null ? entry.dayIndex : dayIndexOf(entry.day),
-    day: entry.day || DAYS[entry.dayIndex || 0],
-    start: entry.start || "",
-    end: entry.end || "",
-    title: entry.title || "Class",
-    location: entry.location || "",
-    type: entry.type || "",
-  };
+  const e = normEntry(entry);
   db.timetable.entries.push(e);
   save(db);
   return e;

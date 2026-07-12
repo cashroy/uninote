@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { collectDeadlines } from "./DeadlinesView.jsx";
 import { dueInfo, fmtDate } from "../util.js";
 
@@ -10,6 +10,49 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const mondayIndex = (d) => (d.getDay() + 6) % 7;
+
+// ---- colour coding ----------------------------------------------------------
+// Semi-transparent tints keyed by an rgb triple so a single palette reads well
+// on every theme (light tint + solid accent bar, text stays the theme's ink).
+const PALETTE = [
+  { key: "blue", rgb: "37,99,235" },
+  { key: "green", rgb: "22,163,74" },
+  { key: "amber", rgb: "217,119,6" },
+  { key: "red", rgb: "220,38,38" },
+  { key: "purple", rgb: "147,51,234" },
+  { key: "pink", rgb: "219,39,119" },
+  { key: "teal", rgb: "13,148,136" },
+  { key: "slate", rgb: "100,116,139" },
+];
+
+function colorFor(entry) {
+  const chosen = entry.color && PALETTE.find((p) => p.key === entry.color);
+  if (chosen) return chosen;
+  // deterministic fallback so untagged classes still colour consistently by name
+  const s = (entry.title || "").toLowerCase();
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return PALETTE[h % PALETTE.length];
+}
+
+const cardStyle = (entry) => {
+  const { rgb } = colorFor(entry);
+  return {
+    background: `rgba(${rgb}, 0.14)`,
+    borderLeft: `3px solid rgb(${rgb})`,
+  };
+};
+
+// ---- time helpers -----------------------------------------------------------
+const toMin = (hhmm) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || "");
+  return m ? (+m[1]) * 60 + (+m[2]) : null;
+};
+const toHHMM = (min) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+
+const PX_PER_HOUR = 56;
+const PX_PER_MIN = PX_PER_HOUR / 60;
+const SNAP_MIN = 15;
 
 // ---- timetable import modal -------------------------------------------------
 function TimetableImport({ existing, onClose, onSaved }) {
@@ -62,7 +105,7 @@ function TimetableImport({ existing, onClose, onSaved }) {
             <p className="modal-sub">Claude found {entries.length} classes. Save them?</p>
             <div className="check-list">
               {entries.map((e, i) => (
-                <div key={i} className="tt-preview-row">
+                <div key={i} className="tt-preview-row" style={cardStyle(e)}>
                   <strong>{e.day}</strong> {e.start}{e.end ? `–${e.end}` : ""} · {e.title}
                   {e.location ? ` · ${e.location}` : ""}{e.type ? ` (${e.type})` : ""}
                 </div>
@@ -83,7 +126,7 @@ function TimetableImport({ existing, onClose, onSaved }) {
 // ---- add / edit a class -----------------------------------------------------
 function EntryForm({ initial, onSubmit, onClose }) {
   const [f, setF] = useState(
-    initial || { day: "Monday", start: "09:00", end: "10:00", title: "", location: "", type: "Lecture" }
+    initial || { day: "Monday", start: "09:00", end: "10:00", title: "", location: "", type: "Lecture", color: "" }
   );
   const up = (k, v) => setF((s) => ({ ...s, [k]: v }));
   return (
@@ -110,6 +153,25 @@ function EntryForm({ initial, onSubmit, onClose }) {
         <input className="text-input" value={f.title} onChange={(e) => up("title", e.target.value)} placeholder="e.g. STAT201 Lecture" autoFocus />
         <h3 className="modal-h3">Location (optional)</h3>
         <input className="text-input" value={f.location} onChange={(e) => up("location", e.target.value)} placeholder="Room / building" />
+        <h3 className="modal-h3">Colour</h3>
+        <div className="swatch-row">
+          <button
+            type="button"
+            className={`swatch swatch-auto ${!f.color ? "sel" : ""}`}
+            title="Auto (by class name)"
+            onClick={() => up("color", "")}
+          >Auto</button>
+          {PALETTE.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              className={`swatch ${f.color === p.key ? "sel" : ""}`}
+              style={{ background: `rgb(${p.rgb})` }}
+              title={p.key}
+              onClick={() => up("color", p.key)}
+            />
+          ))}
+        </div>
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>Cancel</button>
           <button className="btn primary" disabled={!f.title.trim()} onClick={async () => { await onSubmit(f); onClose(); }}>
@@ -118,6 +180,141 @@ function EntryForm({ initial, onSubmit, onClose }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ---- weekly time-grid -------------------------------------------------------
+function WeekGrid({ entries, byDay, onEdit, onDelete, onMove }) {
+  const dragRef = useRef(null);
+  const [dragId, setDragId] = useState(null);
+  const [overDay, setOverDay] = useState(null);
+
+  // Which day columns to show: weekdays always, weekend only if it has classes.
+  const days = useMemo(() => {
+    const used = new Set(entries.map((e) => e.dayIndex ?? 0));
+    const list = [0, 1, 2, 3, 4];
+    if (used.has(5)) list.push(5);
+    if (used.has(6)) list.push(6);
+    return list;
+  }, [entries]);
+
+  // Time window: bound to the actual classes, clamped to a sensible default.
+  const { startMin, endMin } = useMemo(() => {
+    let lo = 8 * 60, hi = 18 * 60;
+    for (const e of entries) {
+      const s = toMin(e.start);
+      if (s == null) continue;
+      const en = toMin(e.end) ?? s + 60;
+      lo = Math.min(lo, s);
+      hi = Math.max(hi, en);
+    }
+    lo = Math.max(0, Math.floor(lo / 60) * 60);
+    hi = Math.min(24 * 60, Math.ceil(hi / 60) * 60);
+    if (hi - lo < 60) hi = lo + 60;
+    return { startMin: lo, endMin: hi };
+  }, [entries]);
+
+  const totalPx = (endMin - startMin) * PX_PER_MIN;
+  const hours = [];
+  for (let m = startMin; m <= endMin; m += 60) hours.push(m);
+
+  // Classes with no valid start can't be placed on the grid — list them below.
+  const unscheduled = entries.filter((e) => toMin(e.start) == null);
+
+  const gridCols = `52px repeat(${days.length}, minmax(0, 1fr))`;
+
+  const onDragStart = (e, entry) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const s = toMin(entry.start);
+    const dur = (toMin(entry.end) ?? s + 60) - s;
+    dragRef.current = { id: entry.id, grabY: e.clientY - rect.top, dur };
+    setDragId(entry.id);
+    e.dataTransfer.effectAllowed = "move";
+    try { e.dataTransfer.setData("text/plain", entry.id); } catch {}
+  };
+  const onDragEnd = () => { dragRef.current = null; setDragId(null); setOverDay(null); };
+
+  const onColDrop = (e, dayIndex) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const d = dragRef.current;
+    setOverDay(null);
+    if (!d) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const topPx = e.clientY - rect.top - d.grabY;
+    let start = startMin + Math.round(topPx / PX_PER_MIN / SNAP_MIN) * SNAP_MIN;
+    start = Math.max(startMin, Math.min(start, endMin - d.dur));
+    onMove(d.id, { dayIndex, day: DAYS[dayIndex], start: toHHMM(start), end: toHHMM(start + d.dur) });
+    onDragEnd();
+  };
+
+  return (
+    <>
+      <div className="ttg">
+        <div className="ttg-head" style={{ gridTemplateColumns: gridCols }}>
+          <div className="ttg-corner" />
+          {days.map((di) => <div key={di} className="ttg-dayhead">{DOW[di]}</div>)}
+        </div>
+        <div className="ttg-body" style={{ gridTemplateColumns: gridCols, height: totalPx }}>
+          <div className="ttg-gutter">
+            {hours.map((m) => (
+              <div key={m} className="ttg-hourlabel" style={{ top: (m - startMin) * PX_PER_MIN }}>
+                {toHHMM(m)}
+              </div>
+            ))}
+          </div>
+          {days.map((di) => (
+            <div
+              key={di}
+              className={`ttg-col ${overDay === di ? "over" : ""}`}
+              onDragOver={(e) => { if (dragRef.current) { e.preventDefault(); setOverDay(di); } }}
+              onDragLeave={() => setOverDay((d) => (d === di ? null : d))}
+              onDrop={(e) => onColDrop(e, di)}
+            >
+              {hours.map((m) => (
+                <div key={m} className="ttg-line" style={{ top: (m - startMin) * PX_PER_MIN }} />
+              ))}
+              {byDay[di].map((e) => {
+                const s = toMin(e.start);
+                if (s == null) return null;
+                const en = toMin(e.end) ?? s + 60;
+                const top = (s - startMin) * PX_PER_MIN;
+                const h = Math.max(24, (en - s) * PX_PER_MIN);
+                return (
+                  <div
+                    key={e.id}
+                    className={`ttg-card ${dragId === e.id ? "dragging" : ""}`}
+                    style={{ top, height: h, ...cardStyle(e) }}
+                    draggable
+                    onDragStart={(ev) => onDragStart(ev, e)}
+                    onDragEnd={onDragEnd}
+                    onClick={() => onEdit(e)}
+                    title="Drag to move · click to edit"
+                  >
+                    <button className="tt-del" title="Remove" onClick={(ev) => { ev.stopPropagation(); onDelete(e.id); }}>×</button>
+                    <div className="ttg-card-time">{e.start}{e.end ? `–${e.end}` : ""}</div>
+                    <div className="ttg-card-title">{e.title}</div>
+                    {e.location && <div className="ttg-card-sub">{e.location}</div>}
+                    {e.type && <div className="ttg-card-sub dim">{e.type}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+      {unscheduled.length > 0 && (
+        <div className="ttg-unscheduled">
+          <span className="ttg-unscheduled-label">No time set:</span>
+          {unscheduled.map((e) => (
+            <button key={e.id} className="ttg-chip" style={cardStyle(e)} onClick={() => onEdit(e)} title="Click to set a time">
+              {e.day} · {e.title}
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="hint">Drag a class to move it to another day or time. Click it to edit, or use × to remove.</p>
+    </>
   );
 }
 
@@ -223,7 +420,7 @@ export default function CalendarView({ lib, setSel }) {
                   );
                 })}
                 {classes.map((c) => (
-                  <div key={c.id} className="cal-chip klass" title={`${c.title}${c.location ? " · " + c.location : ""}`}>
+                  <div key={c.id} className="cal-chip klass" style={cardStyle(c)} title={`${c.title}${c.location ? " · " + c.location : ""}`}>
                     {c.start} {c.title}
                   </div>
                 ))}
@@ -296,26 +493,13 @@ export default function CalendarView({ lib, setSel }) {
               Claude above to build one.</p>
           </div>
         ) : (
-          <div className="tt-grid">
-            {DAYS.map((day, di) => (
-              <div key={day} className="tt-col">
-                <div className="tt-day">{DOW[di]}</div>
-                {byDay[di].length === 0 ? (
-                  <div className="tt-empty">—</div>
-                ) : (
-                  byDay[di].map((e) => (
-                    <div key={e.id} className="tt-entry" onClick={() => setEditing(e)} title="Edit">
-                      <button className="tt-del" title="Remove" onClick={async (ev) => { ev.stopPropagation(); await api.removeTimetableEntry(e.id); loadTT(); }}>×</button>
-                      <div className="tt-time">{e.start}{e.end ? `–${e.end}` : ""}</div>
-                      <div className="tt-title">{e.title}</div>
-                      {e.location && <div className="tt-loc">{e.location}</div>}
-                      {e.type && <div className="tt-type">{e.type}</div>}
-                    </div>
-                  ))
-                )}
-              </div>
-            ))}
-          </div>
+          <WeekGrid
+            entries={tt.entries}
+            byDay={byDay}
+            onEdit={(e) => setEditing(e)}
+            onDelete={async (idv) => { await api.removeTimetableEntry(idv); loadTT(); }}
+            onMove={async (idv, patch) => { await api.updateTimetableEntry(idv, patch); loadTT(); }}
+          />
         )}
       </section>
 

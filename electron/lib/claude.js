@@ -71,10 +71,20 @@ async function testClaudeCode() {
   }
 }
 
+// Short aliases the Claude Code CLI understands, and their full API model ids.
+const MODEL_IDS = {
+  haiku: "claude-haiku-4-5",
+  sonnet: "claude-sonnet-5",
+  opus: "claude-opus-4-8",
+};
+
 // Run Claude Code headlessly. Prompt goes via stdin so no shell-quoting issues.
-function runClaudeCode(prompt, { timeoutMs = 300000, cwd, extraArgs = [] } = {}) {
+function runClaudeCode(prompt, { timeoutMs = 300000, cwd, extraArgs = [], model } = {}) {
   return new Promise((resolve, reject) => {
-    const args = ["-p", "--output-format", "json", ...extraArgs];
+    // A lighter model (e.g. "sonnet") makes structured extraction like timetable
+    // parsing far faster than the default (opus) without hurting accuracy.
+    const modelArgs = model ? ["--model", model] : [];
+    const args = ["-p", "--output-format", "json", ...modelArgs, ...extraArgs];
     const child = spawn("claude", args, {
       shell: true,
       cwd: cwd || undefined,
@@ -112,12 +122,14 @@ function runClaudeCode(prompt, { timeoutMs = 300000, cwd, extraArgs = [] } = {})
 
 /**
  * Unified completion.
- * opts: { system, prompt, maxTokens, onDelta, pdfPath }
+ * opts: { system, prompt, maxTokens, onDelta, pdfPath, model, thinking }
  *  - onDelta streams text chunks (API backend only; claude-code delivers one chunk)
  *  - pdfPath attaches a PDF as a native document block (API backend only)
+ *  - model overrides the model for this call (e.g. "sonnet" for fast parsing)
+ *  - thinking=false disables extended thinking (faster for structured extraction)
  * Returns the full text.
  */
-async function complete({ system, prompt, maxTokens = 16000, onDelta, pdfPath }) {
+async function complete({ system, prompt, maxTokens = 16000, onDelta, pdfPath, model, thinking = true }) {
   const settings = store.getSettings();
 
   // API backend retained but only used if explicitly configured; the app now
@@ -135,10 +147,10 @@ async function complete({ system, prompt, maxTokens = 16000, onDelta, pdfPath })
     content.push({ type: "text", text: prompt });
 
     const stream = client.messages.stream({
-      model: settings.model || "claude-opus-4-8",
+      model: MODEL_IDS[model] || model || settings.model || "claude-opus-4-8",
       max_tokens: maxTokens,
       system: system || undefined,
-      thinking: { type: "adaptive" },
+      ...(thinking ? { thinking: { type: "adaptive" } } : {}),
       messages: [{ role: "user", content }],
     });
     if (onDelta) stream.on("text", (t) => onDelta(t));
@@ -154,7 +166,7 @@ async function complete({ system, prompt, maxTokens = 16000, onDelta, pdfPath })
 
   // claude-code backend — single-shot, prompt carries the system text
   const full = (system ? `<instructions>\n${system}\n</instructions>\n\n` : "") + prompt;
-  const text = await runClaudeCode(full);
+  const text = await runClaudeCode(full, { model });
   if (onDelta) onDelta(text);
   return text;
 }

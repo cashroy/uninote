@@ -38,6 +38,54 @@ function truncate(text, max) {
   return text.length > max ? text.slice(0, max) + "\n\n[...document truncated...]" : text;
 }
 
+// Pull the first balanced JSON value (array or object) out of a model response,
+// tolerating markdown fences and surrounding prose. More reliable than a greedy
+// regex, which can over-match trailing text that happens to contain a bracket.
+function extractJson(raw, open, close) {
+  if (!raw) return null;
+  const s = String(raw).replace(/```(?:json)?/gi, "");
+  const start = s.indexOf(open);
+  if (start === -1) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === "\\") esc = true;
+      else if (ch === '"') inStr = false;
+    } else if (ch === '"') inStr = true;
+    else if (ch === open) depth++;
+    else if (ch === close && --depth === 0) return s.slice(start, i + 1);
+  }
+  return null;
+}
+
+// Normalise assorted time strings ("9am", "1:30 PM", "0900", "9.00") to "HH:MM".
+function normTime(t) {
+  if (t == null) return "";
+  const s = String(t).trim();
+  if (!s) return "";
+  let m = s.match(/^(\d{1,2})[:.\s]?(\d{2})\s*([ap]\.?m\.?)?$/i);
+  if (m) {
+    let h = +m[1];
+    const min = m[2];
+    const ap = (m[3] || "").toLowerCase();
+    if (ap.startsWith("p") && h < 12) h += 12;
+    if (ap.startsWith("a") && h === 12) h = 0;
+    if (h > 23) return s;
+    return `${String(h).padStart(2, "0")}:${min}`;
+  }
+  m = s.match(/^(\d{1,2})\s*([ap]\.?m\.?)$/i); // "9am", "1 pm"
+  if (m) {
+    let h = +m[1];
+    const ap = m[2].toLowerCase();
+    if (ap.startsWith("p") && h < 12) h += 12;
+    if (ap.startsWith("a") && h === 12) h = 0;
+    return `${String(h).padStart(2, "0")}:00`;
+  }
+  return s;
+}
+
 // ---- classification -------------------------------------------------------
 
 async function classify(fileName, text) {
@@ -76,31 +124,39 @@ Respond with ONLY a JSON object on one line, no other text:
 // ---- timetable parsing ----------------------------------------------------
 
 async function parseTimetable(text) {
-  const prompt = `Below is text extracted from a student's class timetable (it may be a grid, a list, or messy). Extract every scheduled class into structured data.
+  const prompt = `Below is text extracted from a student's class timetable. It may be a grid (weekdays across the top as columns, times down the side as rows), a list, or messy exported text where the layout is lost. Extract every scheduled class into structured data.
 
-For each class produce: day (full weekday name, e.g. "Monday"), start (24-hour "HH:MM"), end (24-hour "HH:MM"), title (course/paper name or code), location (room/building if present, else ""), type (e.g. Lecture, Lab, Tutorial, Workshop — else "").
+Reading rules:
+- If it's a grid, a class belongs to the WEEKDAY of its column and the TIME of its row. Read carefully so classes land on the right day.
+- Convert every time to 24-hour "HH:MM" (e.g. "1pm" → "13:00", "9.30am" → "09:30").
+- Map day names/abbreviations to the full weekday ("Mon"/"M" → "Monday").
+- One object per class occurrence. If the same class runs at several times, output one object each.
+- Ignore headers, week numbers, room legends and blank cells — only real classes.
+
+For each class produce: day (full weekday name), start ("HH:MM"), end ("HH:MM"), title (course/paper name or code), location (room/building if present, else ""), type (e.g. Lecture, Lab, Tutorial, Workshop — else "").
 
 Timetable text:
 """
 ${truncate(text, 40000)}
 """
 
-Respond with ONLY a JSON array, no other text, like:
+Respond with ONLY a JSON array, no prose, no code fences, like:
 [{"day":"Monday","start":"09:00","end":"10:00","title":"STAT201","location":"Room 4","type":"Lecture"}]
 If you cannot find any classes, respond with [].`;
 
-  const raw = await claude.complete({ prompt, maxTokens: 4000 });
+  // "sonnet" keeps this structured extraction accurate but much faster than opus.
+  const raw = await claude.complete({ prompt, maxTokens: 4000, model: "sonnet", thinking: false });
   try {
-    const m = raw.match(/\[[\s\S]*\]/);
-    const arr = JSON.parse(m ? m[0] : raw);
+    const jsonText = extractJson(raw, "[", "]");
+    const arr = JSON.parse(jsonText ?? raw);
     if (Array.isArray(arr)) {
       return arr
         .filter((e) => e && e.title)
         .map((e) => ({
           day: e.day || "Monday",
           dayIndex: library.dayIndexOf(e.day),
-          start: e.start || "",
-          end: e.end || "",
+          start: normTime(e.start),
+          end: normTime(e.end),
           title: String(e.title).trim(),
           location: e.location || "",
           type: e.type || "",
@@ -133,9 +189,9 @@ Respond with ONLY a JSON object, no other text:
 {"entries":[...],"termStart":"YYYY-MM-DD" or null,"termEnd":"YYYY-MM-DD" or null,"breaks":[{"start":"YYYY-MM-DD","end":"YYYY-MM-DD","label":"..."}],"note":"one short sentence for the student"}`;
 
   const raw = await claude.complete({ prompt, maxTokens: 8000 });
-  const m = raw.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error("Claude didn't return a usable timetable.");
-  const obj = JSON.parse(m[0]);
+  const jsonText = extractJson(raw, "{", "}");
+  if (!jsonText) throw new Error("Claude didn't return a usable timetable.");
+  const obj = JSON.parse(jsonText);
   return {
     entries: Array.isArray(obj.entries) ? obj.entries : current.entries,
     termStart: obj.termStart || null,
