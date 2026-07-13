@@ -20,12 +20,11 @@ export default function UpdateNotice() {
     <div className="update-toast">
       {status === "available" && (
         <>
-          <span className="update-dot" />
+          <span className="update-dot pulse" />
           <div className="update-text">
-            <strong>Update available</strong> — UniNote {version} is ready to download.
+            <strong>Update available</strong> — downloading UniNote {version} in the background…
           </div>
-          <button className="btn tiny" onClick={() => setDismissed(true)}>Later</button>
-          <button className="btn tiny primary" onClick={() => api.updateDownload()}>Download</button>
+          <button className="btn tiny" onClick={() => setDismissed(true)}>OK</button>
         </>
       )}
       {status === "downloading" && (
@@ -39,10 +38,10 @@ export default function UpdateNotice() {
         <>
           <span className="update-dot ready" />
           <div className="update-text">
-            <strong>Update ready</strong> — restart to install UniNote {version}.
+            <strong>Update ready</strong> — just close and reopen UniNote to finish updating to {version}.
           </div>
           <button className="btn tiny" onClick={() => setDismissed(true)}>Later</button>
-          <button className="btn tiny primary" onClick={() => api.updateInstall()}>Restart &amp; install</button>
+          <button className="btn tiny primary" onClick={() => api.updateInstall()}>Restart now</button>
         </>
       )}
     </div>

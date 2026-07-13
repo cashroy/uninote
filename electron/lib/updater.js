@@ -19,7 +19,10 @@ function canUpdate() {
 function getUpdater() {
   if (!autoUpdater) {
     autoUpdater = require("electron-updater").autoUpdater;
-    autoUpdater.autoDownload = false; // ask the user first
+    // Download updates quietly in the background, and let the one-click NSIS
+    // installer apply them silently when the app quits — so a plain close +
+    // reopen finishes the update with no installer wizard.
+    autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
   }
   return autoUpdater;
