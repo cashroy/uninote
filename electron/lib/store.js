@@ -10,7 +10,7 @@ const DEFAULTS = {
   model: "claude-opus-4-8",
   geminiKeyEnc: null, // Google AI Studio key (encrypted)
   geminiKeyPlain: null,
-  geminiModel: "gemini-2.5-flash",
+  geminiModel: "gemini-flash-latest", // alias → newest flash, avoids model sunsets
   indexMode: "builtin", // "builtin" | "graphify"
   theme: "mono", // "mono" (minimal B&W, default) | "paper" | "dark"
   university: "", // used to look up semester/break dates
@@ -20,10 +20,17 @@ function settingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
 }
 
+// Gemini models that Google has retired for new users — migrate to the alias.
+const DEAD_GEMINI_MODELS = new Set(["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]);
+
 function getSettings() {
   try {
     const raw = JSON.parse(fs.readFileSync(settingsPath(), "utf8"));
-    return { ...DEFAULTS, ...raw };
+    const merged = { ...DEFAULTS, ...raw };
+    if (!merged.geminiModel || DEAD_GEMINI_MODELS.has(merged.geminiModel)) {
+      merged.geminiModel = DEFAULTS.geminiModel;
+    }
+    return merged;
   } catch {
     return { ...DEFAULTS };
   }

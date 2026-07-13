@@ -132,11 +132,13 @@ function runClaudeCode(prompt, { timeoutMs = 300000, cwd, extraArgs = [], model 
 // ---- Gemini (Google AI Studio) --------------------------------------------
 // REST call so we don't take on another SDK dependency. Non-streaming; onDelta
 // is fired once with the full text (the UI handles single-chunk delivery).
+const DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
+
 async function geminiComplete({ system, prompt, maxTokens, onDelta, pdfPath, model }) {
   const key = store.getGeminiKey();
   if (!key) throw new Error("No Gemini API key configured. Open Settings to add one.");
   const settings = store.getSettings();
-  const m = model && String(model).startsWith("gemini") ? model : settings.geminiModel || "gemini-2.5-flash";
+  const m = model && String(model).startsWith("gemini") ? model : settings.geminiModel || DEFAULT_GEMINI_MODEL;
   const parts = [];
   if (pdfPath) {
     parts.push({ inlineData: { mimeType: "application/pdf", data: fs.readFileSync(pdfPath).toString("base64") } });
@@ -165,7 +167,7 @@ async function geminiComplete({ system, prompt, maxTokens, onDelta, pdfPath, mod
 async function testGeminiKey(key) {
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

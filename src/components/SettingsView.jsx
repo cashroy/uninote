@@ -14,7 +14,7 @@ export default function SettingsView({ settings, onSettingsChanged }) {
   const [university, setUniversity] = useState(settings.university || "");
   const [backend, setBackend] = useState(settings.backend || "claude-code");
   const [geminiKey, setGeminiKey] = useState("");
-  const [geminiModel, setGeminiModel] = useState(settings.geminiModel || "gemini-2.5-flash");
+  const [geminiModel, setGeminiModel] = useState(settings.geminiModel || "gemini-flash-latest");
   const [gconn, setGconn] = useState(null); // gemini test: null|"testing"|"ok"|err
   const [claudeCode, setClaudeCode] = useState(null);
   const [conn, setConn] = useState(null); // null | "testing" | "ok" | err
@@ -154,7 +154,7 @@ export default function SettingsView({ settings, onSettingsChanged }) {
             <p className="hint">
               Model{" "}
               <input className="date-input" style={{ width: 190 }} value={geminiModel} onChange={(e) => setGeminiModel(e.target.value)} />
-              {" "}— e.g. gemini-2.5-flash (fast) or gemini-2.5-pro. Free key at aistudio.google.com/apikey.
+              {" "}— e.g. gemini-flash-latest (recommended) or gemini-pro-latest. Free key at aistudio.google.com/apikey.
             </p>
           </div>
         )}
