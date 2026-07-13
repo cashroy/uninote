@@ -3,7 +3,7 @@ const path = require("path");
 
 const store = require("./lib/store");
 const library = require("./lib/library");
-const { extractText } = require("./lib/extract");
+const { extractText, renderRich } = require("./lib/extract");
 const claude = require("./lib/claude");
 const ai = require("./lib/ai");
 const graphify = require("./lib/graphify");
@@ -93,10 +93,12 @@ ipcMain.handle("settings:get", () => {
     onboarded: s.onboarded,
     backend: s.backend,
     model: s.model,
+    geminiModel: s.geminiModel,
     indexMode: s.indexMode,
     theme: s.theme || "mono",
     university: s.university || "",
     hasApiKey: !!store.getApiKey(),
+    hasGeminiKey: !!store.getGeminiKey(),
     libraryPath: library.libRoot(),
     appVersion: app.getVersion(),
     canUpdate: updater.canUpdate(),
@@ -104,14 +106,16 @@ ipcMain.handle("settings:get", () => {
 });
 
 ipcMain.handle("settings:save", (_e, patch) => {
-  const { apiKey, ...rest } = patch || {};
+  const { apiKey, geminiApiKey, ...rest } = patch || {};
   if (apiKey !== undefined) store.setApiKey(apiKey || null);
+  if (geminiApiKey !== undefined) store.setGeminiKey(geminiApiKey || null);
   store.saveSettings(rest);
   return true;
 });
 
 ipcMain.handle("setup:checkClaudeCode", () => claude.checkClaudeCode());
 ipcMain.handle("setup:testApiKey", (_e, key) => claude.testApiKey(key));
+ipcMain.handle("setup:testGeminiKey", (_e, key) => claude.testGeminiKey(key));
 ipcMain.handle("setup:loginClaude", () => claude.loginClaudeCode());
 ipcMain.handle("setup:testClaude", () => claude.testClaudeCode());
 
@@ -231,6 +235,14 @@ ipcMain.handle("doc:readBytes", (_e, absPath) => {
 });
 ipcMain.handle("doc:delete", (_e, docId) => library.removeDoc(docId));
 
+// Rich viewer rendering (docx -> HTML, pptx -> slides). PDFs/images/text are
+// handled directly in the renderer via readBytes/readFile.
+ipcMain.handle("doc:render", (_e, absPath) => renderRich(absPath));
+
+// per-document margin notes shown beside a document in the viewer
+ipcMain.handle("docnote:get", (_e, docId) => library.getDocNote(docId));
+ipcMain.handle("docnote:save", (_e, docId, text) => library.saveDocNote(docId, text));
+
 // ---- built-in notes & scratchpad ---------------------------------------------
 
 ipcMain.handle("note:create", (_e, paperId, title, content) =>
@@ -330,6 +342,8 @@ ipcMain.handle("test:setDueDate", (_e, testId, dueDate) =>
   library.setTestDueDate(testId, dueDate)
 );
 
+ipcMain.handle("test:update", (_e, testId, patch) => library.updateTest(testId, patch));
+
 ipcMain.handle("test:generate", async (_e, testId) => {
   const db = library.load();
   const test = db.tests.find((t) => t.id === testId);
@@ -350,10 +364,10 @@ ipcMain.handle("test:delete", (_e, testId) => library.removeTest(testId));
 
 ipcMain.handle("chat:send", async (_e, reqId, scope, question, history) => {
   try {
-    const { text, contextSource } = await ai.chat(scope, question, history, (t) =>
+    const { text, contextSource, changed } = await ai.chat(scope, question, history, (t) =>
       send("chat:delta", { reqId, text: t })
     );
-    send("chat:done", { reqId, text, contextSource });
+    send("chat:done", { reqId, text, contextSource, changed });
     return { ok: true };
   } catch (err) {
     send("chat:error", { reqId, error: err.message || String(err) });

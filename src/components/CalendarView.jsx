@@ -329,7 +329,8 @@ export default function CalendarView({ lib, setSel }) {
   const [note, setNote] = useState("");
 
   const loadTT = async () => setTt(await api.getTimetable());
-  useEffect(() => { loadTT(); }, []);
+  // reload when the library refreshes too, so chat-driven calendar edits show up
+  useEffect(() => { loadTT(); }, [lib]);
 
   const deadlinesByDate = useMemo(() => {
     const map = {};

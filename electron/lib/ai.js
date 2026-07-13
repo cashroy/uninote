@@ -286,6 +286,51 @@ ${parts.join("\n\n") || "(No readable text was extracted — infer the standard 
 
 // ---- chat -----------------------------------------------------------------
 
+// Papers within a chat scope, so the assistant can target where a note goes.
+function papersInScope(db, scope) {
+  const out = [];
+  const push = (y, s, p) => out.push({ id: p.id, code: p.code, name: p.name || "" });
+  if (!scope || scope.kind === "all") {
+    for (const y of db.years) for (const s of y.semesters) for (const p of s.papers) push(y, s, p);
+  } else if (scope.kind === "paper") {
+    const hit = library.findPaper(db, scope.id);
+    if (hit) push(hit.year, hit.sem, hit.paper);
+  } else if (scope.kind === "semester") {
+    const hit = library.findSemester(db, scope.id);
+    if (hit) for (const p of hit.sem.papers) push(hit.year, hit.sem, p);
+  } else if (scope.kind === "year") {
+    const y = db.years.find((x) => x.id === scope.id);
+    if (y) for (const s of y.semesters) for (const p of s.papers) push(y, s, p);
+  }
+  return out;
+}
+
+// Execute an action the assistant asked for. Only touches the student's own data
+// and only edits notes made in-app (never uploaded documents).
+async function executeAction(act, scope, db) {
+  const university = store.getSettings().university || "";
+  if (act.action === "timetable") {
+    const result = await assistTimetable(library.getTimetableData(), String(act.instruction || ""), university);
+    library.setTimetableFull(result);
+    return { changed: true, note: `Calendar updated — ${result.note || "done"}.` };
+  }
+  if (act.action === "create_note") {
+    const paperId = act.paperId || (scope?.kind === "paper" ? scope.id : null);
+    if (!paperId || !library.findPaper(db, paperId)) {
+      return { changed: false, note: "Tell me which paper to put the note in and I'll create it." };
+    }
+    const note = library.createNote(paperId, String(act.title || "Note").trim(), act.content || "");
+    return { changed: true, note: `Created note “${note.fileName}”.` };
+  }
+  if (act.action === "edit_note") {
+    const doc = db.docs.find((d) => d.id === act.docId && d.isNote);
+    if (!doc) return { changed: false, note: "I can only edit notes created in UniNote, not uploaded files." };
+    library.updateNote(act.docId, act.content || "");
+    return { changed: true, note: `Updated note “${doc.fileName}”.` };
+  }
+  return { changed: false, note: "" };
+}
+
 async function chat(scope, question, history, onDelta) {
   const db = library.load();
   const docs = library.docsInScope(db, scope);
@@ -322,6 +367,17 @@ async function chat(scope, question, history, onDelta) {
     .map((d) => `- ${d.fileName} [${d.category}]`)
     .join("\n");
 
+  const editableNotes = docs
+    .filter((d) => d.isNote)
+    .slice(0, 60)
+    .map((d) => `  - id:${d.id} · "${d.fileName}"`)
+    .join("\n");
+  const paperTargets = papersInScope(db, scope)
+    .slice(0, 60)
+    .map((p) => `  - id:${p.id} · ${p.code}${p.name ? ` (${p.name})` : ""}`)
+    .join("\n");
+  const timetable = library.getTimetableData();
+
   const historyBlock = (history || [])
     .slice(-8)
     .map((m) => `${m.role === "user" ? "Student" : "Assistant"}: ${m.text}`)
@@ -330,16 +386,45 @@ async function chat(scope, question, history, onDelta) {
   const prompt = `${contextBlock ? contextBlock + "\n\n" : ""}Documents in the student's current location:
 ${fileList || "(none yet)"}
 
+Notes you may edit (id → title):
+${editableNotes || "(none)"}
+
+Papers you may add a note to (id → code):
+${paperTargets || "(none)"}
+
+Current timetable / calendar JSON:
+${JSON.stringify(timetable)}
+
 ${historyBlock ? `Conversation so far:\n${historyBlock}\n\n` : ""}Student's question: ${question}`;
 
-  const text = await claude.complete({
-    system:
-      "You are a study assistant embedded in UniNote, the student's notes organiser. Answer using the provided document context when relevant, and say so when the notes don't cover something. Be concrete and cite which document information came from. Use Markdown.",
-    prompt,
-    maxTokens: 8000,
-    onDelta,
-  });
-  return { text, contextSource };
+  const system = `You are a study assistant embedded in UniNote, the student's notes organiser. Answer questions using the provided document context, and say so when the notes don't cover something. Be concrete and cite which document information came from. Use Markdown.
+
+You can also make changes for the student. When they ask you to change their timetable/calendar, or to create or edit a note, do it by ENDING your reply with exactly ONE fenced code block labelled action containing a JSON object. Write your normal, friendly reply first; never mention the JSON block.
+
+Actions:
+- Edit the calendar/timetable: {"action":"timetable","instruction":"<plain-English change, e.g. add a STAT201 lecture Monday 9-10 in Room 4, move the lab to Thursday, or set the semester end to 14 June>"}
+- Create a note (new material): {"action":"create_note","paperId":"<id from the papers list>","title":"<title>","content":"<full note as Markdown>"}
+- Edit an existing note: {"action":"edit_note","docId":"<id from the editable-notes list>","content":"<the complete new Markdown>"}
+
+Rules: only ever edit notes listed above (never uploaded documents). When writing note content, output the whole document, not a diff. If the target paper is ambiguous, ask instead of guessing. Only include an action block when the student actually asked you to change something.`;
+
+  const raw = await claude.complete({ system, prompt, maxTokens: 8000, onDelta });
+
+  let text = raw;
+  let changed = false;
+  const m = raw.match(/```action\s*([\s\S]*?)```/i);
+  if (m) {
+    text = raw.replace(m[0], "").trim();
+    try {
+      const act = JSON.parse(extractJson(m[1], "{", "}") ?? m[1]);
+      const r = await executeAction(act, scope, db);
+      changed = r.changed;
+      if (r.note) text += `\n\n*${r.note}*`;
+    } catch (e) {
+      text += `\n\n*Sorry — I couldn't apply that change (${e.message}).*`;
+    }
+  }
+  return { text, contextSource, changed };
 }
 
 module.exports = { classify, summarize, generateTestMaterial, generateFormulaSheet, chat, parseTimetable, assistTimetable, SUMMARY_MODES };

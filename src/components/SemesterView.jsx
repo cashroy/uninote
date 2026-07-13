@@ -7,6 +7,7 @@ const api = window.uninote;
 
 export default function SemesterView({ lib, semId, refresh, setSel }) {
   const [showCreate, setShowCreate] = useState(false);
+  const [editingTest, setEditingTest] = useState(null);
   const [generating, setGenerating] = useState({});
   const [viewing, setViewing] = useState(null);
 
@@ -113,31 +114,27 @@ export default function SemesterView({ lib, semId, refresh, setSel }) {
                   />
                 </div>
                 <div className="doc-actions">
-                  {t.materialPath ? (
-                    <>
-                      <button
-                        className="btn tiny"
-                        onClick={() => setViewing({ title: `${t.name} — Study Material`, absPath: t.materialPath })}
-                      >
-                        📖 Open study material
-                      </button>
-                      <button
-                        className="btn tiny"
-                        disabled={generating[t.id]}
-                        onClick={() => generate(t.id)}
-                      >
-                        {generating[t.id] ? "Regenerating…" : "↻ Regenerate"}
-                      </button>
-                    </>
-                  ) : (
+                  {t.materialPath && (
                     <button
-                      className="btn tiny primary"
-                      disabled={generating[t.id]}
-                      onClick={() => generate(t.id)}
+                      className="btn tiny"
+                      onClick={() => setViewing({ title: `${t.name} — Study Material`, absPath: t.materialPath })}
                     >
-                      {generating[t.id] ? "Claude is working…" : "✨ Generate study material"}
+                      📖 Open study material
                     </button>
                   )}
+                  <button className="btn tiny" onClick={() => setEditingTest(t)}>
+                    ✏️ Edit / add material
+                  </button>
+                  <button
+                    className={`btn tiny ${t.materialPath ? "" : "primary"}`}
+                    disabled={generating[t.id] || t.docIds.length === 0}
+                    title={t.docIds.length === 0 ? "Add some material first" : ""}
+                    onClick={() => generate(t.id)}
+                  >
+                    {generating[t.id]
+                      ? "Claude is working…"
+                      : t.materialPath ? "↻ Regenerate" : "✨ Generate study material"}
+                  </button>
                   <button
                     className="btn tiny danger"
                     onClick={async () => {
@@ -163,8 +160,18 @@ export default function SemesterView({ lib, semId, refresh, setSel }) {
           refresh={refresh}
           onClose={async (created) => {
             setShowCreate(false);
-            if (created) await generate(created.id);
+            // only auto-generate when the test was created with material
+            if (created && created.docIds?.length) await generate(created.id);
           }}
+        />
+      )}
+      {editingTest && (
+        <CreateTestModal
+          lib={lib}
+          filterSemId={semId}
+          refresh={refresh}
+          test={editingTest}
+          onClose={() => setEditingTest(null)}
         />
       )}
       {viewing && (

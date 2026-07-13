@@ -129,8 +129,64 @@ function runClaudeCode(prompt, { timeoutMs = 300000, cwd, extraArgs = [], model 
  *  - thinking=false disables extended thinking (faster for structured extraction)
  * Returns the full text.
  */
+// ---- Gemini (Google AI Studio) --------------------------------------------
+// REST call so we don't take on another SDK dependency. Non-streaming; onDelta
+// is fired once with the full text (the UI handles single-chunk delivery).
+async function geminiComplete({ system, prompt, maxTokens, onDelta, pdfPath, model }) {
+  const key = store.getGeminiKey();
+  if (!key) throw new Error("No Gemini API key configured. Open Settings to add one.");
+  const settings = store.getSettings();
+  const m = model && String(model).startsWith("gemini") ? model : settings.geminiModel || "gemini-2.5-flash";
+  const parts = [];
+  if (pdfPath) {
+    parts.push({ inlineData: { mimeType: "application/pdf", data: fs.readFileSync(pdfPath).toString("base64") } });
+  }
+  parts.push({ text: prompt });
+  const body = {
+    contents: [{ role: "user", parts }],
+    generationConfig: { maxOutputTokens: maxTokens },
+  };
+  if (system) body.systemInstruction = { parts: [{ text: system }] };
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(key)}`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+  );
+  if (!res.ok) {
+    let detail = await res.text();
+    try { detail = JSON.parse(detail).error?.message || detail; } catch {}
+    throw new Error("Gemini request failed: " + String(detail).slice(0, 300));
+  }
+  const data = await res.json();
+  const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
+  if (onDelta) onDelta(text);
+  return text;
+}
+
+async function testGeminiKey(key) {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "Reply with OK" }] }] }),
+      }
+    );
+    if (res.ok) return { ok: true };
+    let detail = await res.text();
+    try { detail = JSON.parse(detail).error?.message || detail; } catch {}
+    return { ok: false, error: String(detail).slice(0, 300) };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+}
+
 async function complete({ system, prompt, maxTokens = 16000, onDelta, pdfPath, model, thinking = true }) {
   const settings = store.getSettings();
+
+  if (settings.backend === "gemini") {
+    return geminiComplete({ system, prompt, maxTokens, onDelta, pdfPath, model });
+  }
 
   // API backend retained but only used if explicitly configured; the app now
   // ships login-only, so this branch is normally never taken.
@@ -175,6 +231,7 @@ module.exports = {
   complete,
   checkClaudeCode,
   testApiKey,
+  testGeminiKey,
   testClaudeCode,
   loginClaudeCode,
   runClaudeCode,

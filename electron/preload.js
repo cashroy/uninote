@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("uninote", {
   saveSettings: (patch) => ipcRenderer.invoke("settings:save", patch),
   checkClaudeCode: () => ipcRenderer.invoke("setup:checkClaudeCode"),
   testApiKey: (key) => ipcRenderer.invoke("setup:testApiKey", key),
+  testGeminiKey: (key) => ipcRenderer.invoke("setup:testGeminiKey", key),
   loginClaude: () => ipcRenderer.invoke("setup:loginClaude"),
   testClaude: () => ipcRenderer.invoke("setup:testClaude"),
 
@@ -47,7 +48,10 @@ contextBridge.exposeInMainWorld("uninote", {
   openFile: (absPath) => ipcRenderer.invoke("doc:open", absPath),
   readFile: (absPath) => ipcRenderer.invoke("doc:readFile", absPath),
   readBytes: (absPath) => ipcRenderer.invoke("doc:readBytes", absPath),
+  renderDoc: (absPath) => ipcRenderer.invoke("doc:render", absPath),
   deleteDoc: (docId) => ipcRenderer.invoke("doc:delete", docId),
+  getDocNote: (docId) => ipcRenderer.invoke("docnote:get", docId),
+  saveDocNote: (docId, text) => ipcRenderer.invoke("docnote:save", docId, text),
 
   // drag & drop helper (File.path was removed in modern Electron)
   pathForFile: (file) => webUtils.getPathForFile(file),
@@ -87,6 +91,7 @@ contextBridge.exposeInMainWorld("uninote", {
   createTest: (semesterId, name, docIds, pastPaperDocId, paperId, dueDate) =>
     ipcRenderer.invoke("test:create", semesterId, name, docIds, pastPaperDocId, paperId, dueDate),
   setTestDueDate: (testId, dueDate) => ipcRenderer.invoke("test:setDueDate", testId, dueDate),
+  updateTest: (testId, patch) => ipcRenderer.invoke("test:update", testId, patch),
   generateTest: (testId) => ipcRenderer.invoke("test:generate", testId),
   deleteTest: (testId) => ipcRenderer.invoke("test:delete", testId),
   onTestDelta: on("test:delta"),

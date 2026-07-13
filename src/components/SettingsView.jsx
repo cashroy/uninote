@@ -12,6 +12,10 @@ export default function SettingsView({ settings, onSettingsChanged }) {
   const [indexMode, setIndexMode] = useState(settings.indexMode);
   const [theme, setTheme] = useState(settings.theme || "mono");
   const [university, setUniversity] = useState(settings.university || "");
+  const [backend, setBackend] = useState(settings.backend || "claude-code");
+  const [geminiKey, setGeminiKey] = useState("");
+  const [geminiModel, setGeminiModel] = useState(settings.geminiModel || "gemini-2.5-flash");
+  const [gconn, setGconn] = useState(null); // gemini test: null|"testing"|"ok"|err
   const [claudeCode, setClaudeCode] = useState(null);
   const [conn, setConn] = useState(null); // null | "testing" | "ok" | err
   const [graph, setGraph] = useState(null);
@@ -65,7 +69,10 @@ export default function SettingsView({ settings, onSettingsChanged }) {
   };
 
   const save = async () => {
-    await api.saveSettings({ indexMode, theme, university });
+    const patch = { indexMode, theme, university, backend, geminiModel };
+    if (geminiKey.trim()) patch.geminiApiKey = geminiKey.trim();
+    await api.saveSettings(patch);
+    setGeminiKey("");
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     onSettingsChanged();
@@ -75,6 +82,12 @@ export default function SettingsView({ settings, onSettingsChanged }) {
     setConn("testing");
     const res = await api.testClaude();
     setConn(res.ok ? "ok" : res.error || "Not connected");
+  };
+
+  const testGemini = async () => {
+    setGconn("testing");
+    const res = await api.testGeminiKey(geminiKey.trim());
+    setGconn(res.ok ? "ok" : res.error || "That key didn't work");
   };
 
   return (
@@ -104,6 +117,47 @@ export default function SettingsView({ settings, onSettingsChanged }) {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="settings-section">
+        <h2>AI engine</h2>
+        <p className="muted">Which AI powers UniNote. Switch any time — remember to Save.</p>
+        <label className="radio-row">
+          <input type="radio" checked={backend === "claude-code"} onChange={() => setBackend("claude-code")} />
+          <span>
+            <strong>Claude</strong> — your Claude subscription via Claude Code
+            {claudeCode?.available ? ` (detected ${claudeCode.version})` : ""}
+          </span>
+        </label>
+        <label className="radio-row">
+          <input type="radio" checked={backend === "gemini"} onChange={() => setBackend("gemini")} />
+          <span>
+            <strong>Google Gemini</strong> — free Google AI Studio API key
+            {settings.hasGeminiKey ? " (key saved ✓)" : ""}
+          </span>
+        </label>
+        {backend === "gemini" && (
+          <div className="graph-actions">
+            <div className="key-row">
+              <input
+                type="password"
+                placeholder={settings.hasGeminiKey ? "Key saved — paste a new one to replace" : "Paste your AI Studio key (AIza…)"}
+                value={geminiKey}
+                onChange={(e) => { setGeminiKey(e.target.value); setGconn(null); }}
+              />
+              <button className="btn" disabled={!geminiKey.trim() || gconn === "testing"} onClick={testGemini}>
+                {gconn === "testing" ? "Checking…" : "Test key"}
+              </button>
+            </div>
+            {gconn === "ok" && <span className="key-ok"> ✓ Works</span>}
+            {gconn && gconn !== "ok" && gconn !== "testing" && <span className="key-err"> {gconn}</span>}
+            <p className="hint">
+              Model{" "}
+              <input className="date-input" style={{ width: 190 }} value={geminiModel} onChange={(e) => setGeminiModel(e.target.value)} />
+              {" "}— e.g. gemini-2.5-flash (fast) or gemini-2.5-pro. Free key at aistudio.google.com/apikey.
+            </p>
+          </div>
+        )}
       </section>
 
       <section className="settings-section">

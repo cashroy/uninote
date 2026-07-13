@@ -175,6 +175,7 @@ export default function App() {
           setOpen={setChatOpen}
           scope={scope}
           scopeLabel={scopeLabel}
+          refresh={refresh}
         />
       </div>
       {dropActive && (

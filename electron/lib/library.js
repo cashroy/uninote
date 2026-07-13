@@ -43,6 +43,7 @@ function load() {
     db = { years: [], docs: [], tests: [] };
   }
   if (!db.flashcards) db.flashcards = {};
+  if (!db.docNotes) db.docNotes = {};
   if (!db.customCategories) db.customCategories = [];
   if (!db.timetable) db.timetable = { entries: [] };
   if (!db.timetable.breaks) db.timetable.breaks = [];
@@ -429,6 +430,21 @@ function saveFlashState(summaryId, state) {
   return true;
 }
 
+// ---- per-document margin notes (shown beside a doc in the viewer) ----------
+
+function getDocNote(docId) {
+  const db = load();
+  return db.docNotes[docId] || "";
+}
+
+function saveDocNote(docId, text) {
+  const db = load();
+  if (!text) delete db.docNotes[docId];
+  else db.docNotes[docId] = text;
+  save(db);
+  return true;
+}
+
 function addSummary(docId, mode, markdown) {
   const db = load();
   const doc = db.docs.find((d) => d.id === docId);
@@ -502,6 +518,19 @@ function setTestMaterial(testId, markdown) {
   const dest = path.join(dir, "Study Material.md");
   fs.writeFileSync(dest, markdown, "utf8");
   t.materialPath = dest;
+  save(db);
+  return t;
+}
+
+// Edit a test's name / sources / past paper / due date (add material later).
+function updateTest(testId, patch) {
+  const db = load();
+  const t = db.tests.find((x) => x.id === testId);
+  if (!t) throw new Error("Test not found");
+  if ("name" in patch && patch.name?.trim()) t.name = patch.name.trim();
+  if ("docIds" in patch) t.docIds = patch.docIds || [];
+  if ("pastPaperDocId" in patch) t.pastPaperDocId = patch.pastPaperDocId || null;
+  if ("dueDate" in patch) t.dueDate = patch.dueDate || null;
   save(db);
   return t;
 }
@@ -580,7 +609,10 @@ module.exports = {
   saveFormulaSheet,
   getFlashState,
   saveFlashState,
+  getDocNote,
+  saveDocNote,
   createTest,
+  updateTest,
   setTestMaterial,
   setTestDueDate,
   removeTest,

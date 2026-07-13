@@ -4,10 +4,13 @@ const path = require("path");
 
 const DEFAULTS = {
   onboarded: false,
-  backend: "claude-code", // app ships login-only; "api" kept for power users
+  backend: "claude-code", // "claude-code" | "api" | "gemini"
   apiKeyEnc: null, // base64 of safeStorage-encrypted key
   apiKeyPlain: null, // fallback when safeStorage unavailable
   model: "claude-opus-4-8",
+  geminiKeyEnc: null, // Google AI Studio key (encrypted)
+  geminiKeyPlain: null,
+  geminiModel: "gemini-2.5-flash",
   indexMode: "builtin", // "builtin" | "graphify"
   theme: "mono", // "mono" (minimal B&W, default) | "paper" | "dark"
   university: "", // used to look up semester/break dates
@@ -60,4 +63,28 @@ function getApiKey() {
   return s.apiKeyPlain || null;
 }
 
-module.exports = { getSettings, saveSettings, setApiKey, getApiKey };
+function setGeminiKey(key) {
+  if (!key) {
+    saveSettings({ geminiKeyEnc: null, geminiKeyPlain: null });
+    return;
+  }
+  if (safeStorage.isEncryptionAvailable()) {
+    saveSettings({ geminiKeyEnc: safeStorage.encryptString(key).toString("base64"), geminiKeyPlain: null });
+  } else {
+    saveSettings({ geminiKeyEnc: null, geminiKeyPlain: key });
+  }
+}
+
+function getGeminiKey() {
+  const s = getSettings();
+  if (s.geminiKeyEnc) {
+    try {
+      return safeStorage.decryptString(Buffer.from(s.geminiKeyEnc, "base64"));
+    } catch {
+      return null;
+    }
+  }
+  return s.geminiKeyPlain || null;
+}
+
+module.exports = { getSettings, saveSettings, setApiKey, getApiKey, setGeminiKey, getGeminiKey };

@@ -98,4 +98,40 @@ async function extractText(filePath) {
   return "";
 }
 
-module.exports = { extractText };
+// Rich in-app rendering for the document viewer: Word -> formatted HTML,
+// PowerPoint -> per-slide text. (PDFs/images/text are handled directly by the
+// renderer via readBytes/readFile.)
+async function renderRich(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  try {
+    if (ext === ".docx") {
+      const mammoth = require("mammoth");
+      const { value } = await mammoth.convertToHtml({ path: filePath });
+      return { kind: "html", html: value || "" };
+    }
+    if (ext === ".pptx") {
+      const AdmZip = require("adm-zip");
+      const zip = new AdmZip(filePath);
+      const strip = (s) =>
+        s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+      const slides = zip
+        .getEntries()
+        .filter((e) => /^ppt\/slides\/slide\d+\.xml$/.test(e.entryName))
+        .sort((a, b) => {
+          const n = (e) => parseInt(e.entryName.match(/slide(\d+)\.xml/)[1], 10);
+          return n(a) - n(b);
+        })
+        .map((s) => {
+          const xml = s.getData().toString("utf8");
+          return [...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map((m) => strip(m[1])).join("\n");
+        });
+      return { kind: "slides", slides };
+    }
+  } catch (err) {
+    return { kind: "error", error: err.message };
+  }
+  return { kind: "none" };
+}
+
+module.exports = { extractText, renderRich };

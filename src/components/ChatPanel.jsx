@@ -4,12 +4,14 @@ import { md } from "../util.js";
 const api = window.uninote;
 let reqCounter = 0;
 
-export default function ChatPanel({ open, setOpen, scope, scopeLabel }) {
+export default function ChatPanel({ open, setOpen, scope, scopeLabel, refresh }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const bodyRef = useRef(null);
   const activeReq = useRef(null);
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
 
   useEffect(() => {
     const offDelta = api.onChatDelta(({ reqId, text }) => {
@@ -23,7 +25,7 @@ export default function ChatPanel({ open, setOpen, scope, scopeLabel }) {
         return copy;
       });
     });
-    const offDone = api.onChatDone(({ reqId, text, contextSource }) => {
+    const offDone = api.onChatDone(({ reqId, text, contextSource, changed }) => {
       if (reqId !== activeReq.current) return;
       setMessages((ms) => {
         const copy = [...ms];
@@ -34,6 +36,8 @@ export default function ChatPanel({ open, setOpen, scope, scopeLabel }) {
         return copy;
       });
       setBusy(false);
+      // The assistant edited the timetable or a note — reload the library so the UI reflects it.
+      if (changed) refreshRef.current?.();
     });
     const offError = api.onChatError(({ reqId, error }) => {
       if (reqId !== activeReq.current) return;
@@ -93,7 +97,10 @@ export default function ChatPanel({ open, setOpen, scope, scopeLabel }) {
         {messages.length === 0 && (
           <div className="chat-empty">
             Ask anything about the notes in your current location — “what did lecture 3 cover?”,
-            “explain assignment 2's requirements”, “which topics haven't I got notes for?”
+            “explain assignment 2's requirements”.
+            <br /><br />
+            I can also make changes for you: “add a STAT201 lecture Monday 9–10”, “write me a note
+            summarising week 4”, or “tidy up my Intro note”.
           </div>
         )}
         {messages.map((m, i) => (

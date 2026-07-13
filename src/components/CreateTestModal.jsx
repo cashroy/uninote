@@ -5,12 +5,15 @@ const api = window.uninote;
 // Create a test for a single paper. Usable anywhere: pass `filterSemId` to lock
 // the picker to one semester, or omit it to choose any paper in the library.
 // Calls onClose(createdTest|undefined). Tests cover ONE paper at a time.
-export default function CreateTestModal({ lib, filterSemId, onClose, refresh, autoGenerate }) {
-  const [name, setName] = useState("");
-  const [paperId, setPaperId] = useState("");
-  const [selected, setSelected] = useState({});
-  const [pastPaperId, setPastPaperId] = useState("");
-  const [dueDate, setDueDate] = useState("");
+export default function CreateTestModal({ lib, filterSemId, onClose, refresh, autoGenerate, test }) {
+  const editing = !!test;
+  const [name, setName] = useState(test?.name || "");
+  const [paperId, setPaperId] = useState(test?.paperId || "");
+  const [selected, setSelected] = useState(() =>
+    test ? Object.fromEntries((test.docIds || []).map((id) => [id, true])) : {}
+  );
+  const [pastPaperId, setPastPaperId] = useState(test?.pastPaperDocId || "");
+  const [dueDate, setDueDate] = useState(test?.dueDate || "");
   const [creating, setCreating] = useState(false);
 
   // paper options (optionally limited to one semester), with full location labels
@@ -44,10 +47,10 @@ export default function CreateTestModal({ lib, filterSemId, onClose, refresh, au
   return (
     <div className="modal-backdrop" onClick={() => !creating && onClose()}>
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
-        <h2>📝 New test</h2>
+        <h2>{editing ? "✏️ Edit test" : "📝 New test"}</h2>
         <p className="modal-sub">
-          A test covers one paper. Pick the paper and what's on the test — Claude builds study
-          material from it. Anything already used in an earlier test is marked.
+          A test covers one paper. Choosing material is optional — create the test now and add or
+          change what it covers later, then generate. Anything already used in an earlier test is marked.
         </p>
         <input
           className="text-input"
@@ -62,6 +65,7 @@ export default function CreateTestModal({ lib, filterSemId, onClose, refresh, au
             <select
               className="text-input"
               value={paperId}
+              disabled={editing}
               onChange={(e) => { setPaperId(e.target.value); setSelected({}); setPastPaperId(""); }}
             >
               <option value="">Choose a paper…</option>
@@ -121,22 +125,30 @@ export default function CreateTestModal({ lib, filterSemId, onClose, refresh, au
           <button className="btn" onClick={() => onClose()} disabled={creating}>Cancel</button>
           <button
             className="btn primary"
-            disabled={!name.trim() || !paperId || chosen.length === 0 || creating}
+            disabled={!name.trim() || !paperId || creating}
             onClick={async () => {
               setCreating(true);
               try {
-                const test = await api.createTest(
-                  chosenPaper.semId, name, chosen, pastPaperId || null, paperId, dueDate || null
-                );
-                await refresh();
-                onClose(test);
+                if (editing) {
+                  await api.updateTest(test.id, {
+                    name, docIds: chosen, pastPaperDocId: pastPaperId || null, dueDate: dueDate || null,
+                  });
+                  await refresh();
+                  onClose({ ...test, name, docIds: chosen, pastPaperDocId: pastPaperId || null, dueDate: dueDate || null, edited: true });
+                } else {
+                  const created = await api.createTest(
+                    chosenPaper.semId, name, chosen, pastPaperId || null, paperId, dueDate || null
+                  );
+                  await refresh();
+                  onClose(created);
+                }
               } catch (err) {
-                alert("Could not create test: " + (err.message || err));
+                alert("Could not save test: " + (err.message || err));
                 setCreating(false);
               }
             }}
           >
-            Create test
+            {editing ? "Save changes" : "Create test"}
           </button>
         </div>
       </div>
