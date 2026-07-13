@@ -66,6 +66,10 @@
 :root[data-theme="dark"] .btn.primary:hover:not(:disabled) { background: #fff; color: #18181b; }
 :root[data-theme="dark"] .chat-msg.user { color: #18181b; }
 
+/* KaTeX: let long display equations scroll instead of overflowing the card */
+.katex-display { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+.katex { font-size: 1.05em; }
+
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
 body {

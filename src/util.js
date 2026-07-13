@@ -1,7 +1,33 @@
 import { marked } from "marked";
+import katex from "katex";
 
+// Render LaTeX math ($…$, $$…$$, \(…\), \[…\]) with KaTeX BEFORE marked runs, so
+// marked can't mangle the TeX (underscores → emphasis, backslashes, etc.). Math
+// is stashed as placeholder tokens, the rest is parsed as Markdown, then the
+// rendered math is swapped back in.
 export function md(text) {
-  return { __html: marked.parse(text || "") };
+  const store = [];
+  const stash = (tex, display) => {
+    let html;
+    try {
+      html = katex.renderToString(tex.trim(), { displayMode: display, throwOnError: false });
+    } catch {
+      html = (display ? "$$" : "$") + tex + (display ? "$$" : "$");
+    }
+    store.push(html);
+    return `@@KMATH${store.length - 1}@@`;
+  };
+  let s = String(text || "");
+  s = s.replace(/\$\$([\s\S]+?)\$\$/g, (_, t) => stash(t, true));
+  s = s.replace(/\\\[([\s\S]+?)\\\]/g, (_, t) => stash(t, true));
+  s = s.replace(/\\\(([\s\S]+?)\\\)/g, (_, t) => stash(t, false));
+  s = s.replace(/\$(?!\s)([^\n$]+?)(?<!\s)\$/g, (_, t) => stash(t, false));
+
+  let html = marked.parse(s);
+  // unwrap display math that marked put in its own paragraph, then inline the rest
+  html = html.replace(/<p>\s*@@KMATH(\d+)@@\s*<\/p>/g, (_, i) => store[+i] ?? "");
+  html = html.replace(/@@KMATH(\d+)@@/g, (_, i) => store[+i] ?? "");
+  return { __html: html };
 }
 
 // Date display format, chosen in Settings and applied app-wide via App.jsx.

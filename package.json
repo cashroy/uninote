@@ -1,7 +1,7 @@
 {
   "name": "uninote",
   "productName": "UniNote",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "AI-powered university notes organiser",
   "author": "choco",
   "license": "MIT",
@@ -36,8 +36,14 @@
     "win": {
       "icon": "build/icon.png",
       "target": [
-        { "target": "nsis", "arch": "x64" },
-        { "target": "portable", "arch": "x64" }
+        {
+          "target": "nsis",
+          "arch": "x64"
+        },
+        {
+          "target": "portable",
+          "arch": "x64"
+        }
       ]
     },
     "portable": {
@@ -54,6 +60,7 @@
     "@anthropic-ai/sdk": "^0.93.0",
     "adm-zip": "^0.5.16",
     "electron-updater": "^6.6.2",
+    "katex": "^0.16.47",
     "mammoth": "^1.11.0",
     "marked": "^15.0.12",
     "pdf-parse": "^1.1.1",

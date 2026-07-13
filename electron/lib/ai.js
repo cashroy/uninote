@@ -1,6 +1,7 @@
 const path = require("path");
 const claude = require("./claude");
 const library = require("./library");
+const extract = require("./extract");
 const indexer = require("./indexer");
 const graphify = require("./graphify");
 const store = require("./store");
@@ -210,22 +211,41 @@ async function summarize(doc, mode, customInstruction, onDelta) {
 
   const text = indexer.readDocText(doc);
   const isPdf = path.extname(doc.fileName).toLowerCase() === ".pdf";
-  const usePdfNative =
-    store.getSettings().backend === "api" && isPdf && text.trim().length < 200;
+  const backend = store.getSettings().backend;
+  const usePdfNative = backend === "api" && isPdf && text.trim().length < 200;
+
+  // On a vision-capable engine, attach the document's images so the model can
+  // keep the important ones in the summary. Skipped for the text-only CLI engine.
+  let images = [];
+  if ((backend === "gemini" || backend === "api") && !usePdfNative) {
+    try { images = extract.extractImages(doc.absPath); } catch {}
+  }
+  const imageInstr = images.length
+    ? `\n\n${images.length} image(s) from this document are attached, numbered 1–${images.length} in order. If a figure, diagram, chart or worked example among them genuinely helps understanding, embed it in your Markdown where it belongs using ![short caption](IMG:N) with N the image's number. Only include ones that truly aid understanding — skip logos, decorations and irrelevant images.`
+    : "";
 
   const prompt = `${instruction}
 
 The document is "${doc.fileName}" (categorised as ${doc.category}) from a university course.
-Write the result as clean Markdown with a title. Do not add commentary about the task itself.
+Write the result as clean Markdown with a title. Do not add commentary about the task itself.${imageInstr}
 ${usePdfNative ? "" : `\nDocument content:\n"""\n${truncate(text, 120000)}\n"""`}`;
 
-  const md = await claude.complete({
+  let md = await claude.complete({
     system: "You are an expert academic tutor creating high-quality study materials.",
     prompt,
     maxTokens: 32000,
     onDelta,
     pdfPath: usePdfNative ? doc.absPath : undefined,
+    images: images.length ? images : undefined,
   });
+
+  // swap the AI's image placeholders for self-contained data URIs so they render
+  if (images.length) {
+    md = md.replace(/!\[([^\]]*)\]\(\s*IMG:(\d+)\s*\)/gi, (_m, alt, k) => {
+      const img = images[Number(k) - 1];
+      return img ? `![${alt}](data:${img.mime};base64,${img.data})` : "";
+    });
+  }
   return md;
 }
 

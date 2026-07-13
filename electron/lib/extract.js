@@ -134,4 +134,36 @@ async function renderRich(filePath) {
   return { kind: "none" };
 }
 
-module.exports = { extractText, renderRich };
+// Pull embedded raster images out of a document so a vision model can decide
+// which (if any) are worth keeping in a summary. Returns [{mime, data(base64)}].
+const IMG_MIME = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp" };
+
+function extractImages(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  try {
+    if (IMG_MIME[ext]) {
+      const data = fs.readFileSync(filePath);
+      return data.length < 4_000_000 ? [{ mime: IMG_MIME[ext], data: data.toString("base64") }] : [];
+    }
+    if (ext === ".docx" || ext === ".pptx") {
+      const AdmZip = require("adm-zip");
+      const zip = new AdmZip(filePath);
+      const mediaDir = ext === ".docx" ? /^word\/media\// : /^ppt\/media\//;
+      const out = [];
+      for (const e of zip.getEntries()) {
+        if (out.length >= 10) break;
+        if (!mediaDir.test(e.entryName)) continue;
+        const mime = IMG_MIME[path.extname(e.entryName).toLowerCase()];
+        if (!mime) continue; // skip emf/wmf/etc a browser can't show
+        const buf = e.getData();
+        if (buf.length > 3000 && buf.length < 2_000_000) out.push({ mime, data: buf.toString("base64") });
+      }
+      return out;
+    }
+  } catch (err) {
+    console.error("extractImages failed for", filePath, err.message);
+  }
+  return [];
+}
+
+module.exports = { extractText, renderRich, extractImages };

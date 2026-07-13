@@ -134,7 +134,7 @@ function runClaudeCode(prompt, { timeoutMs = 300000, cwd, extraArgs = [], model 
 // is fired once with the full text (the UI handles single-chunk delivery).
 const DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
 
-async function geminiComplete({ system, prompt, maxTokens, onDelta, pdfPath, model }) {
+async function geminiComplete({ system, prompt, maxTokens, onDelta, pdfPath, images, model }) {
   const key = store.getGeminiKey();
   if (!key) throw new Error("No Gemini API key configured. Open Settings to add one.");
   const settings = store.getSettings();
@@ -143,6 +143,7 @@ async function geminiComplete({ system, prompt, maxTokens, onDelta, pdfPath, mod
   if (pdfPath) {
     parts.push({ inlineData: { mimeType: "application/pdf", data: fs.readFileSync(pdfPath).toString("base64") } });
   }
+  for (const im of images || []) parts.push({ inlineData: { mimeType: im.mime, data: im.data } });
   parts.push({ text: prompt });
   const body = {
     contents: [{ role: "user", parts }],
@@ -183,11 +184,11 @@ async function testGeminiKey(key) {
   }
 }
 
-async function complete({ system, prompt, maxTokens = 16000, onDelta, pdfPath, model, thinking = true }) {
+async function complete({ system, prompt, maxTokens = 16000, onDelta, pdfPath, images, model, thinking = true }) {
   const settings = store.getSettings();
 
   if (settings.backend === "gemini") {
-    return geminiComplete({ system, prompt, maxTokens, onDelta, pdfPath, model });
+    return geminiComplete({ system, prompt, maxTokens, onDelta, pdfPath, images, model });
   }
 
   // API backend retained but only used if explicitly configured; the app now
@@ -201,6 +202,9 @@ async function complete({ system, prompt, maxTokens = 16000, onDelta, pdfPath, m
         type: "document",
         source: { type: "base64", media_type: "application/pdf", data: b64 },
       });
+    }
+    for (const im of images || []) {
+      content.push({ type: "image", source: { type: "base64", media_type: im.mime, data: im.data } });
     }
     content.push({ type: "text", text: prompt });
 
