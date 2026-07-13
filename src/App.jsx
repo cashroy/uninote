@@ -14,6 +14,7 @@ import ChatPanel from "./components/ChatPanel.jsx";
 import IngestFlow from "./components/IngestFlow.jsx";
 import WindowControls from "./components/WindowControls.jsx";
 import UpdateNotice from "./components/UpdateNotice.jsx";
+import { setDateFormat } from "./util.js";
 
 const api = window.uninote;
 
@@ -46,6 +47,7 @@ export default function App() {
     (async () => {
       const s = await api.getSettings();
       document.documentElement.dataset.theme = s.theme || "mono";
+      setDateFormat(s.dateFormat);
       setSettings(s);
       await refresh();
     })();
@@ -55,6 +57,11 @@ export default function App() {
   useEffect(() => {
     if (settings?.theme) document.documentElement.dataset.theme = settings.theme;
   }, [settings?.theme]);
+
+  // keep the date format in sync whenever settings change
+  useEffect(() => {
+    setDateFormat(settings?.dateFormat);
+  }, [settings?.dateFormat]);
 
   // -------- global drag & drop ------------------------------------------
   useEffect(() => {
@@ -123,6 +130,9 @@ export default function App() {
   }, [lib, sel]);
 
   if (!settings || !lib) return <div className="loading">Loading…</div>;
+
+  // apply the chosen date format synchronously so fmtDate is correct this render
+  setDateFormat(settings.dateFormat);
 
   if (!settings.onboarded) {
     return (

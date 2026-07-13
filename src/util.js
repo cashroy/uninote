@@ -4,15 +4,22 @@ export function md(text) {
   return { __html: marked.parse(text || "") };
 }
 
+// Date display format, chosen in Settings and applied app-wide via App.jsx.
+let _dateFormat = "system"; // "system" | "dmy" | "mdy" | "ymd"
+export function setDateFormat(f) { _dateFormat = f || "system"; }
+
 export function fmtDate(iso) {
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return "";
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  switch (_dateFormat) {
+    case "dmy": return `${dd}/${mm}/${yyyy}`;
+    case "mdy": return `${mm}/${dd}/${yyyy}`;
+    case "ymd": return `${yyyy}-${mm}-${dd}`;
+    default: return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
   }
 }
 

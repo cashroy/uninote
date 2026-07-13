@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { fileIcon, fmtDate, dueInfo, CATEGORY_ICONS, WEEKS } from "../util.js";
 import MarkdownModal from "./MarkdownModal.jsx";
 import SummarizeDialog from "./SummarizeDialog.jsx";
-import FormulaSheetModal from "./FormulaSheetModal.jsx";
+import FormulaSheetModal, { SCOPE_LABEL } from "./FormulaSheetModal.jsx";
 import NoteEditor from "./NoteEditor.jsx";
 import Scratchpad from "./Scratchpad.jsx";
 import FlashcardReview from "./FlashcardReview.jsx";
@@ -137,6 +137,8 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
     ...Object.keys(byCategory).filter((c) => !lib.categories.includes(c)),
   ];
 
+  const formulaSheets = (lib.formulaSheets || []).filter((f) => f.paperId === paperId);
+
   return (
     <div className="paper-layout">
       <div className="view">
@@ -192,6 +194,42 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
           </div>
         )}
 
+        {formulaSheets.length > 0 && (
+          <section className="category-section">
+            <h2>
+              <span className="cat-icon">📐</span> Formula sheets
+              <span className="cat-count">{formulaSheets.length}</span>
+            </h2>
+            <div className="doc-grid">
+              {formulaSheets.map((f) => (
+                <div key={f.id} className="doc-card">
+                  <div className="doc-main" onClick={() => setViewing({ title: f.title, absPath: f.absPath })} title="View formula sheet">
+                    <span className="doc-icon">📐</span>
+                    <div className="doc-meta">
+                      <div className="doc-name">{f.title}</div>
+                      <div className="doc-date">{SCOPE_LABEL[f.scope] || "Formula sheet"} · {fmtDate(f.createdAt)}</div>
+                    </div>
+                  </div>
+                  <div className="doc-actions">
+                    <button className="btn tiny" onClick={() => setViewing({ title: f.title, absPath: f.absPath })}>📖 Open</button>
+                    <button
+                      className="btn tiny danger"
+                      onClick={async () => {
+                        if (confirm(`Delete formula sheet "${f.title}"?`)) {
+                          await api.removeFormulaSheet(f.id);
+                          await refresh();
+                        }
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {orderedCats
           .map((cat) => (
             <section key={cat} className="category-section">
@@ -245,7 +283,12 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
       {reviewing && <FlashcardReview summary={reviewing} onClose={() => setReviewing(null)} />}
       {viewingDoc && <DocumentViewer doc={viewingDoc} onClose={() => setViewingDoc(null)} />}
       {formulaSheet && (
-        <FormulaSheetModal paperId={paperId} paperLabel={paper.code} onClose={() => setFormulaSheet(false)} />
+        <FormulaSheetModal
+          paperId={paperId}
+          paperLabel={paper.code}
+          onClose={() => setFormulaSheet(false)}
+          onDone={refresh}
+        />
       )}
     </div>
   );

@@ -263,18 +263,28 @@ ${parts.join("\n\n")}`;
 
 // ---- formula sheet --------------------------------------------------------
 
-// Reads every document in a paper and builds one consolidated formula sheet.
-async function generateFormulaSheet(paper, docs, onDelta) {
+// What each formula-sheet scope should include.
+const FORMULA_SCOPES = {
+  everything: "every formula, equation, identity, key definition, rule, theorem, constant and important result",
+  formulas: "every formula, equation and identity — mathematical expressions only, not prose definitions",
+  definitions: "every key definition, term and concept, each with its precise meaning",
+  formulas_definitions: "every formula and equation, plus every key definition and term",
+  results: "every key result, theorem, law and property, noting the conditions under which each holds",
+};
+
+// Reads every document in a paper and builds one scoped formula sheet.
+async function generateFormulaSheet(paper, docs, scope, custom, onDelta) {
   const parts = docs.map(
     (d) => `### ${d.fileName} (${d.category})\n"""\n${truncate(indexer.readDocText(d), 24000)}\n"""`
   );
   const title = `${paper.code}${paper.name ? " " + paper.name : ""}`;
-  const prompt = `Build a single, comprehensive FORMULA SHEET for the university paper "${title}", pulling together everything examinable from the material below.
+  const what = scope === "custom" && custom?.trim() ? custom.trim() : (FORMULA_SCOPES[scope] || FORMULA_SCOPES.everything);
+  const prompt = `Build a FORMULA SHEET for the university paper "${title}", pulling together material from the documents below.
 
-Include every formula, equation, identity, key definition, rule, theorem, constant and important result you can find. Organise it by topic with clear Markdown headings. For each formula: show it clearly (use LaTeX-style notation where it helps), define what each symbol means, and add a short note on when or how to use it. Be exhaustive but compact — this is a one-stop revision reference, not prose. No narrative introduction or conclusion.
+Include ${what}. Organise it by topic with clear Markdown headings. Show each item clearly (use LaTeX-style notation where it helps), define what any symbols mean, and add a short note on when or how to use it. Be exhaustive but compact — this is a one-stop revision reference, not prose. No narrative introduction or conclusion.
 
 Course material:
-${parts.join("\n\n") || "(No readable text was extracted — infer the standard formulas a course with this code/name would cover, and say so at the top.)"}`;
+${parts.join("\n\n") || "(No readable text was extracted — infer the standard content a course with this code/name would cover, and say so at the top.)"}`;
 
   return claude.complete({
     system: "You are an expert academic tutor assembling a rigorous, exhaustive exam formula sheet in clean Markdown.",

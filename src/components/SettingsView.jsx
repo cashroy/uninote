@@ -11,7 +11,7 @@ const THEMES = [
 export default function SettingsView({ settings, onSettingsChanged }) {
   const [indexMode, setIndexMode] = useState(settings.indexMode);
   const [theme, setTheme] = useState(settings.theme || "mono");
-  const [university, setUniversity] = useState(settings.university || "");
+  const [dateFmt, setDateFmt] = useState(settings.dateFormat || "system");
   const [backend, setBackend] = useState(settings.backend || "claude-code");
   const [geminiKey, setGeminiKey] = useState("");
   const [geminiModel, setGeminiModel] = useState(settings.geminiModel || "gemini-flash-latest");
@@ -69,7 +69,7 @@ export default function SettingsView({ settings, onSettingsChanged }) {
   };
 
   const save = async () => {
-    const patch = { indexMode, theme, university, backend, geminiModel };
+    const patch = { indexMode, theme, backend, geminiModel, dateFormat: dateFmt };
     if (geminiKey.trim()) patch.geminiApiKey = geminiKey.trim();
     await api.saveSettings(patch);
     setGeminiKey("");
@@ -177,16 +177,14 @@ export default function SettingsView({ settings, onSettingsChanged }) {
       </section>
 
       <section className="settings-section">
-        <h2>University</h2>
-        <p className="muted">
-          Used when you ask Claude to fill in semester and break dates in the Calendar.
-        </p>
-        <input
-          className="text-input"
-          placeholder="e.g. University of Auckland"
-          value={university}
-          onChange={(e) => setUniversity(e.target.value)}
-        />
+        <h2>Date format</h2>
+        <p className="muted">How dates are shown across UniNote.</p>
+        <select className="text-input" value={dateFmt} onChange={(e) => setDateFmt(e.target.value)}>
+          <option value="system">Default (e.g. 13 Jul 2026)</option>
+          <option value="dmy">DD/MM/YYYY</option>
+          <option value="mdy">MM/DD/YYYY</option>
+          <option value="ymd">YYYY-MM-DD</option>
+        </select>
       </section>
 
       <section className="settings-section">

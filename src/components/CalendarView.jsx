@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { collectDeadlines } from "./DeadlinesView.jsx";
 import { dueInfo, fmtDate } from "../util.js";
+import { COUNTRIES, UNIVERSITIES } from "../universities.js";
 
 const api = window.uninote;
 
@@ -327,6 +328,38 @@ export default function CalendarView({ lib, setSel }) {
   const [ask, setAsk] = useState("");
   const [asking, setAsking] = useState(false);
   const [note, setNote] = useState("");
+  const [country, setCountry] = useState("");
+  const [university, setUniversity] = useState("");
+  const [uniOther, setUniOther] = useState(false);
+  const [uniBusy, setUniBusy] = useState(false);
+  const [uniNote, setUniNote] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const s = await api.getSettings();
+      const c = s.universityCountry || "";
+      const u = s.university || "";
+      setCountry(c);
+      setUniversity(u);
+      if (u && (c === "Other" || !(UNIVERSITIES[c] || []).includes(u))) setUniOther(true);
+    })();
+  }, []);
+
+  const applyUniversity = async () => {
+    const uni = university.trim();
+    if (!uni) return;
+    setUniBusy(true);
+    setUniNote("");
+    await api.saveSettings({ university: uni, universityCountry: country });
+    const where = country && country !== "Other" ? ` in ${country}` : "";
+    const res = await api.assistTimetable(
+      `I study at ${uni}${where}. Set this semester's start and end dates (termStart and termEnd) and all mid-semester/term break dates for the current academic year. Keep my existing classes exactly as they are.`
+    );
+    setUniBusy(false);
+    if (!res.ok) { setUniNote("⚠️ " + res.error); return; }
+    setTt({ entries: res.entries, termStart: res.termStart, termEnd: res.termEnd, breaks: res.breaks });
+    setUniNote(res.note || `Filled in semester and break dates for ${uni}.`);
+  };
 
   const loadTT = async () => setTt(await api.getTimetable());
   // reload when the library refreshes too, so chat-driven calendar edits show up
@@ -453,6 +486,60 @@ export default function CalendarView({ lib, setSel }) {
           you (best-effort — check them). Once a semester end date is set, classes stop showing after
           it and skip break weeks.
         </p>
+      </section>
+
+      {/* university */}
+      <section className="category-section">
+        <h2>🎓 Your university</h2>
+        <p className="hint">
+          Pick your university and UniNote asks your AI to fill in this semester's start, end and
+          break dates. It won't change unless you choose a different one.
+        </p>
+        <div className="field-row">
+          <div className="field">
+            <h3 className="modal-h3">Country / region</h3>
+            <select
+              className="text-input"
+              value={country}
+              onChange={(e) => { setCountry(e.target.value); setUniversity(""); setUniOther(e.target.value === "Other"); }}
+            >
+              <option value="">Choose…</option>
+              {COUNTRIES.map((c) => <option key={c}>{c}</option>)}
+              <option value="Other">Other…</option>
+            </select>
+          </div>
+          <div className="field">
+            <h3 className="modal-h3">University</h3>
+            {country && country !== "Other" && !uniOther ? (
+              <select
+                className="text-input"
+                value={university}
+                onChange={(e) => {
+                  if (e.target.value === "__other__") { setUniOther(true); setUniversity(""); }
+                  else setUniversity(e.target.value);
+                }}
+              >
+                <option value="">Choose…</option>
+                {(UNIVERSITIES[country] || []).map((u) => <option key={u}>{u}</option>)}
+                <option value="__other__">Other…</option>
+              </select>
+            ) : (
+              <input
+                className="text-input"
+                placeholder="Type your university"
+                value={university}
+                disabled={!country}
+                onChange={(e) => setUniversity(e.target.value)}
+              />
+            )}
+          </div>
+        </div>
+        <div className="tt-assist" style={{ marginTop: 6 }}>
+          <button className="btn primary" disabled={!university.trim() || uniBusy} onClick={applyUniversity}>
+            {uniBusy ? "Fetching dates…" : "Apply & fill semester dates"}
+          </button>
+        </div>
+        {uniNote && <div className="tt-note">{uniNote}</div>}
       </section>
 
       {/* semester dates */}

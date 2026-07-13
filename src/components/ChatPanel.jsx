@@ -87,7 +87,7 @@ export default function ChatPanel({ open, setOpen, scope, scopeLabel, refresh })
     <aside className="chat-panel">
       <div className="chat-header">
         <div>
-          <div className="chat-title">Ask Claude</div>
+          <div className="chat-title">Ask AI</div>
           <div className="chat-scope">about: {scopeLabel}</div>
         </div>
         <button className="btn tiny" onClick={() => setOpen(false)}>✕</button>
@@ -129,7 +129,7 @@ export default function ChatPanel({ open, setOpen, scope, scopeLabel, refresh })
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={busy ? "Claude is thinking…" : "Ask about your notes…"}
+          placeholder={busy ? "Thinking…" : "Ask about your notes…"}
           disabled={busy}
         />
         <button className="btn primary" type="submit" disabled={busy || !input.trim()}>

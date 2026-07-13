@@ -44,6 +44,7 @@ function load() {
   }
   if (!db.flashcards) db.flashcards = {};
   if (!db.docNotes) db.docNotes = {};
+  if (!db.formulaSheets) db.formulaSheets = [];
   if (!db.customCategories) db.customCategories = [];
   if (!db.timetable) db.timetable = { entries: [] };
   if (!db.timetable.breaks) db.timetable.breaks = [];
@@ -257,6 +258,7 @@ function removeNode(kind, nodeId) {
     if (!y) return;
     const paperIds = y.semesters.flatMap((s) => s.papers.map((p) => p.id));
     db.docs = db.docs.filter((d) => !paperIds.includes(d.paperId));
+    db.formulaSheets = db.formulaSheets.filter((f) => !paperIds.includes(f.paperId));
     const semIds = y.semesters.map((s) => s.id);
     db.tests = db.tests.filter((t) => !semIds.includes(t.semesterId));
     fs.rmSync(path.join(libRoot(), sanitize(y.name)), { recursive: true, force: true });
@@ -266,6 +268,7 @@ function removeNode(kind, nodeId) {
     if (!hit) return;
     const paperIds = hit.sem.papers.map((p) => p.id);
     db.docs = db.docs.filter((d) => !paperIds.includes(d.paperId));
+    db.formulaSheets = db.formulaSheets.filter((f) => !paperIds.includes(f.paperId));
     db.tests = db.tests.filter((t) => t.semesterId !== nodeId);
     fs.rmSync(semesterDir(db, nodeId), { recursive: true, force: true });
     hit.year.semesters = hit.year.semesters.filter((s) => s.id !== nodeId);
@@ -274,6 +277,7 @@ function removeNode(kind, nodeId) {
     if (!hit) return;
     fs.rmSync(paperDir(db, nodeId), { recursive: true, force: true });
     db.docs = db.docs.filter((d) => d.paperId !== nodeId);
+    db.formulaSheets = db.formulaSheets.filter((f) => f.paperId !== nodeId);
     for (const t of db.tests) t.docIds = t.docIds.filter((dId) => db.docs.some((d) => d.id === dId));
     hit.sem.papers = hit.sem.papers.filter((p) => p.id !== nodeId);
   }
@@ -396,24 +400,42 @@ function saveSidenote(paperId, content) {
 
 // ---- per-paper formula sheet (AI generated, regenerated in place) ----------
 
-function formulaSheetPath(paperId) {
+// Multiple named, scoped formula sheets per paper. Files live in the paper's
+// Notes folder; records are tracked in db.formulaSheets.
+function listFormulaSheets(paperId) {
+  return load().formulaSheets.filter((f) => f.paperId === paperId);
+}
+
+function addFormulaSheet(paperId, title, scope, markdown) {
   const db = load();
-  return path.join(paperDir(db, paperId), "_FormulaSheet.md");
+  const dir = path.join(paperDir(db, paperId), "Notes");
+  fs.mkdirSync(dir, { recursive: true });
+  const clean = sanitize(title) || "Formula sheet";
+  let dest = path.join(dir, `${clean}.md`);
+  let n = 1;
+  while (fs.existsSync(dest)) dest = path.join(dir, `${clean} (${n++}).md`);
+  fs.writeFileSync(dest, markdown, "utf8");
+  const rec = {
+    id: id(),
+    paperId,
+    title: (title || "").trim() || "Formula sheet",
+    scope: scope || "everything",
+    fileName: path.basename(dest),
+    absPath: dest,
+    createdAt: new Date().toISOString(),
+  };
+  db.formulaSheets.push(rec);
+  save(db);
+  return rec;
 }
 
-function getFormulaSheet(paperId) {
-  try {
-    return fs.readFileSync(formulaSheetPath(paperId), "utf8");
-  } catch {
-    return "";
-  }
-}
-
-function saveFormulaSheet(paperId, content) {
-  const p = formulaSheetPath(paperId);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, content, "utf8");
-  return true;
+function removeFormulaSheet(sheetId) {
+  const db = load();
+  const rec = db.formulaSheets.find((f) => f.id === sheetId);
+  if (!rec) return;
+  try { fs.rmSync(rec.absPath, { force: true }); } catch {}
+  db.formulaSheets = db.formulaSheets.filter((f) => f.id !== sheetId);
+  save(db);
 }
 
 // ---- flashcard review state ------------------------------------------------
@@ -605,8 +627,9 @@ module.exports = {
   getSidenote,
   saveSidenote,
   sidenotePath,
-  getFormulaSheet,
-  saveFormulaSheet,
+  listFormulaSheets,
+  addFormulaSheet,
+  removeFormulaSheet,
   getFlashState,
   saveFlashState,
   getDocNote,

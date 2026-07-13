@@ -97,6 +97,8 @@ ipcMain.handle("settings:get", () => {
     indexMode: s.indexMode,
     theme: s.theme || "mono",
     university: s.university || "",
+    universityCountry: s.universityCountry || "",
+    dateFormat: s.dateFormat || "system",
     hasApiKey: !!store.getApiKey(),
     hasGeminiKey: !!store.getGeminiKey(),
     libraryPath: library.libRoot(),
@@ -299,20 +301,21 @@ ipcMain.handle("timetable:parseFile", async (_e, filePath) => {
 
 // ---- formula sheet (per-paper, AI generated) ----------------------------------
 
-ipcMain.handle("paper:getFormulaSheet", (_e, paperId) => library.getFormulaSheet(paperId));
+ipcMain.handle("formula:list", (_e, paperId) => library.listFormulaSheets(paperId));
+ipcMain.handle("formula:remove", (_e, sheetId) => library.removeFormulaSheet(sheetId));
 
-ipcMain.handle("paper:formulaSheet", async (_e, paperId) => {
+ipcMain.handle("formula:generate", async (_e, paperId, scope, custom, title) => {
   const db = library.load();
   const hit = library.findPaper(db, paperId);
   if (!hit) return { ok: false, error: "Paper not found." };
   const docs = db.docs.filter((d) => d.paperId === paperId);
-  if (!docs.length) return { ok: false, error: "Add some material to this paper first, then Claude can build a formula sheet from it." };
+  if (!docs.length) return { ok: false, error: "Add some material to this paper first, then the AI can build a formula sheet from it." };
   try {
-    const md = await ai.generateFormulaSheet(hit.paper, docs, (t) =>
+    const md = await ai.generateFormulaSheet(hit.paper, docs, scope, custom, (t) =>
       send("formula:delta", { paperId, text: t })
     );
-    library.saveFormulaSheet(paperId, md);
-    return { ok: true, content: md };
+    const sheet = library.addFormulaSheet(paperId, title, scope, md);
+    return { ok: true, sheet, content: md };
   } catch (err) {
     return { ok: false, error: err.message || String(err) };
   }

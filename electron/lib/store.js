@@ -14,6 +14,8 @@ const DEFAULTS = {
   indexMode: "builtin", // "builtin" | "graphify"
   theme: "mono", // "mono" (minimal B&W, default) | "paper" | "dark"
   university: "", // used to look up semester/break dates
+  universityCountry: "", // country/region the university is in
+  dateFormat: "system", // "system" | "dmy" | "mdy" | "ymd"
 };
 
 function settingsPath() {
