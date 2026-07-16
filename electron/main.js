@@ -9,6 +9,7 @@ const ai = require("./lib/ai");
 const graphify = require("./lib/graphify");
 const search = require("./lib/search");
 const updater = require("./lib/updater");
+const publish = require("./lib/publish");
 
 let win;
 
@@ -101,6 +102,8 @@ ipcMain.handle("settings:get", () => {
     dateFormat: s.dateFormat || "system",
     hasApiKey: !!store.getApiKey(),
     hasGeminiKey: !!store.getGeminiKey(),
+    hasGithubToken: !!store.getGithubToken(),
+    gistUrls: s.gistId && s.gistOwner ? publish.rawUrls(s.gistOwner, s.gistId) : null,
     libraryPath: library.libRoot(),
     appVersion: app.getVersion(),
     canUpdate: updater.canUpdate(),
@@ -108,9 +111,10 @@ ipcMain.handle("settings:get", () => {
 });
 
 ipcMain.handle("settings:save", (_e, patch) => {
-  const { apiKey, geminiApiKey, ...rest } = patch || {};
+  const { apiKey, geminiApiKey, githubToken, ...rest } = patch || {};
   if (apiKey !== undefined) store.setApiKey(apiKey || null);
   if (geminiApiKey !== undefined) store.setGeminiKey(geminiApiKey || null);
+  if (githubToken !== undefined) store.setGithubToken(githubToken || null);
   store.saveSettings(rest);
   return true;
 });
@@ -118,6 +122,7 @@ ipcMain.handle("settings:save", (_e, patch) => {
 ipcMain.handle("setup:checkClaudeCode", () => claude.checkClaudeCode());
 ipcMain.handle("setup:testApiKey", (_e, key) => claude.testApiKey(key));
 ipcMain.handle("setup:testGeminiKey", (_e, key) => claude.testGeminiKey(key));
+ipcMain.handle("setup:testGithubToken", (_e, token) => publish.testToken(token));
 ipcMain.handle("setup:loginClaude", () => claude.loginClaudeCode());
 ipcMain.handle("setup:testClaude", () => claude.testClaudeCode());
 
@@ -341,6 +346,14 @@ ipcMain.handle("calendar:publicHolidays", async () => {
     const list = await ai.publicHolidays(country, new Date().getFullYear());
     library.addPublicHolidays(list);
     return { ok: true, count: list.length };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+
+ipcMain.handle("calendar:publish", async () => {
+  try {
+    return await publish.publish();
   } catch (err) {
     return { ok: false, error: err.message || String(err) };
   }

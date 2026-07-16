@@ -373,6 +373,10 @@ export default function CalendarView({ lib, setSel, refresh }) {
   const [addingEvent, setAddingEvent] = useState(false);
   const [holBusy, setHolBusy] = useState(false);
   const [calNote, setCalNote] = useState("");
+  const [gh, setGh] = useState({ hasToken: false, urls: null });
+  const [ghToken, setGhToken] = useState("");
+  const [publishing, setPublishing] = useState(false);
+  const [ghNote, setGhNote] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -382,8 +386,29 @@ export default function CalendarView({ lib, setSel, refresh }) {
       setCountry(c);
       setUniversity(u);
       if (u && (c === "Other" || !(UNIVERSITIES[c] || []).includes(u))) setUniOther(true);
+      setGh({ hasToken: s.hasGithubToken, urls: s.gistUrls });
     })();
   }, []);
+
+  const saveGhToken = async (remove = false) => {
+    await api.saveSettings({ githubToken: remove ? "" : ghToken.trim() });
+    setGhToken("");
+    const s = await api.getSettings();
+    setGh({ hasToken: s.hasGithubToken, urls: s.gistUrls });
+    setGhNote(remove ? "Disconnected." : "Token saved — now publish your calendars.");
+  };
+  const doPublish = async () => {
+    setPublishing(true); setGhNote("");
+    const res = await api.publishCalendars();
+    setPublishing(false);
+    if (!res.ok) { setGhNote("⚠️ " + res.error); return; }
+    setGh((g) => ({ hasToken: true, urls: { timetable: res.timetable, assessments: res.assessments } }));
+    setGhNote("Published! Subscribe on your phone with the links below. Republish any time to update.");
+  };
+  const copyLink = async (url) => {
+    try { await navigator.clipboard.writeText(url); setGhNote("Link copied."); }
+    catch { setGhNote("Couldn't copy — select the link and copy it manually."); }
+  };
 
   const applyUniversity = async () => {
     const uni = university.trim();
@@ -545,6 +570,53 @@ export default function CalendarView({ lib, setSel, refresh }) {
             );
           })}
         </div>
+      </section>
+
+      {/* subscribe / publish to phone */}
+      <section className="category-section">
+        <h2>📲 Subscribe on your phone</h2>
+        <p className="hint">
+          Publish your calendars to a private GitHub gist and subscribe to the link on your phone —
+          it refreshes automatically whenever you republish. Anyone with the link can view it, so
+          keep it to yourself.
+        </p>
+        {!gh.hasToken ? (
+          <>
+            <p className="hint">
+              One-time setup: create a GitHub token with the <strong>gist</strong> scope at{" "}
+              <span className="mono">github.com/settings/tokens</span> (Generate new token → tick
+              “gist”), then paste it here. It's stored encrypted on your PC.
+            </p>
+            <div className="key-row">
+              <input type="password" placeholder="GitHub token (ghp_…)" value={ghToken} onChange={(e) => setGhToken(e.target.value)} />
+              <button className="btn" disabled={!ghToken.trim()} onClick={() => saveGhToken(false)}>Save token</button>
+            </div>
+          </>
+        ) : (
+          <div className="tt-assist" style={{ marginTop: 4 }}>
+            <button className="btn primary" disabled={publishing} onClick={doPublish}>
+              {publishing ? "Publishing…" : gh.urls ? "Update published calendars" : "Publish calendars"}
+            </button>
+            <button className="btn" onClick={() => saveGhToken(true)} title="Remove the saved token">Disconnect</button>
+          </div>
+        )}
+        {gh.urls && (
+          <div className="sub-links">
+            {[["Timetable", gh.urls.timetable], ["Tests & assignments", gh.urls.assessments]].map(([label, url]) => (
+              <div key={label} className="sub-link">
+                <span className="sub-link-label">{label}</span>
+                <input className="text-input" readOnly value={url} onFocus={(e) => e.currentTarget.select()} style={{ margin: 0 }} />
+                <button className="btn tiny" onClick={() => copyLink(url)}>Copy</button>
+              </div>
+            ))}
+            <p className="hint">
+              On your phone, add a <em>subscribed calendar</em> and paste the link — iPhone: Settings →
+              Calendar → Accounts → Add Account → Other → Add Subscribed Calendar; Google Calendar:
+              Other calendars → From URL.
+            </p>
+          </div>
+        )}
+        {ghNote && <div className="tt-note">{ghNote}</div>}
       </section>
 
       {/* AI assistant */}

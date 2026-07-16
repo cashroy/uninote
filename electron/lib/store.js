@@ -16,6 +16,10 @@ const DEFAULTS = {
   university: "", // used to look up semester/break dates
   universityCountry: "", // country/region the university is in
   dateFormat: "system", // "system" | "dmy" | "mdy" | "ymd"
+  githubTokenEnc: null, // GitHub PAT (gist scope) for publishing calendars
+  githubTokenPlain: null,
+  gistId: null, // the gist the calendars live in (updated in place)
+  gistOwner: "", // gist owner login, for building the raw subscribe URL
 };
 
 function settingsPath() {
@@ -96,4 +100,28 @@ function getGeminiKey() {
   return s.geminiKeyPlain || null;
 }
 
-module.exports = { getSettings, saveSettings, setApiKey, getApiKey, setGeminiKey, getGeminiKey };
+function setGithubToken(key) {
+  if (!key) {
+    saveSettings({ githubTokenEnc: null, githubTokenPlain: null });
+    return;
+  }
+  if (safeStorage.isEncryptionAvailable()) {
+    saveSettings({ githubTokenEnc: safeStorage.encryptString(key).toString("base64"), githubTokenPlain: null });
+  } else {
+    saveSettings({ githubTokenEnc: null, githubTokenPlain: key });
+  }
+}
+
+function getGithubToken() {
+  const s = getSettings();
+  if (s.githubTokenEnc) {
+    try {
+      return safeStorage.decryptString(Buffer.from(s.githubTokenEnc, "base64"));
+    } catch {
+      return null;
+    }
+  }
+  return s.githubTokenPlain || null;
+}
+
+module.exports = { getSettings, saveSettings, setApiKey, getApiKey, setGeminiKey, getGeminiKey, setGithubToken, getGithubToken };

@@ -93,6 +93,8 @@ contextBridge.exposeInMainWorld("uninote", {
   removeEvent: (eventId) => ipcRenderer.invoke("event:remove", eventId),
   fillPublicHolidays: () => ipcRenderer.invoke("calendar:publicHolidays"),
   exportCalendar: (which) => ipcRenderer.invoke("calendar:export", which),
+  testGithubToken: (token) => ipcRenderer.invoke("setup:testGithubToken", token),
+  publishCalendars: () => ipcRenderer.invoke("calendar:publish"),
 
   // search
   globalSearch: (query) => ipcRenderer.invoke("search:global", query),
