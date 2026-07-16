@@ -45,6 +45,8 @@ function load() {
   if (!db.flashcards) db.flashcards = {};
   if (!db.docNotes) db.docNotes = {};
   if (!db.formulaSheets) db.formulaSheets = [];
+  if (!db.assignments) db.assignments = [];
+  if (!db.events) db.events = [];
   if (!db.customCategories) db.customCategories = [];
   if (!db.timetable) db.timetable = { entries: [] };
   if (!db.timetable.breaks) db.timetable.breaks = [];
@@ -260,6 +262,7 @@ function removeNode(kind, nodeId) {
     db.docs = db.docs.filter((d) => !paperIds.includes(d.paperId));
     db.formulaSheets = db.formulaSheets.filter((f) => !paperIds.includes(f.paperId));
     const semIds = y.semesters.map((s) => s.id);
+    db.assignments = db.assignments.filter((a) => !paperIds.includes(a.paperId) && !semIds.includes(a.semesterId));
     db.tests = db.tests.filter((t) => !semIds.includes(t.semesterId));
     fs.rmSync(path.join(libRoot(), sanitize(y.name)), { recursive: true, force: true });
     db.years = db.years.filter((x) => x.id !== nodeId);
@@ -269,6 +272,7 @@ function removeNode(kind, nodeId) {
     const paperIds = hit.sem.papers.map((p) => p.id);
     db.docs = db.docs.filter((d) => !paperIds.includes(d.paperId));
     db.formulaSheets = db.formulaSheets.filter((f) => !paperIds.includes(f.paperId));
+    db.assignments = db.assignments.filter((a) => a.semesterId !== nodeId && !paperIds.includes(a.paperId));
     db.tests = db.tests.filter((t) => t.semesterId !== nodeId);
     fs.rmSync(semesterDir(db, nodeId), { recursive: true, force: true });
     hit.year.semesters = hit.year.semesters.filter((s) => s.id !== nodeId);
@@ -278,6 +282,7 @@ function removeNode(kind, nodeId) {
     fs.rmSync(paperDir(db, nodeId), { recursive: true, force: true });
     db.docs = db.docs.filter((d) => d.paperId !== nodeId);
     db.formulaSheets = db.formulaSheets.filter((f) => f.paperId !== nodeId);
+    db.assignments = db.assignments.filter((a) => a.paperId !== nodeId);
     for (const t of db.tests) t.docIds = t.docIds.filter((dId) => db.docs.some((d) => d.id === dId));
     hit.sem.papers = hit.sem.papers.filter((p) => p.id !== nodeId);
   }
@@ -374,6 +379,166 @@ function setDocMeta(docId, patch) {
   if ("dueDate" in patch) doc.dueDate = patch.dueDate;
   save(db);
   return doc;
+}
+
+// Move a document (and its summaries) to a different category, creating the
+// category if it's new. Physically relocates the files within the paper folder.
+function setDocCategory(docId, category) {
+  const db = load();
+  const doc = db.docs.find((d) => d.id === docId);
+  if (!doc) throw new Error("Doc not found");
+  const clean = String(category || "").trim();
+  if (!clean) return doc;
+  if (!allCategories(db).some((c) => c.toLowerCase() === clean.toLowerCase())) {
+    db.customCategories.push(clean);
+  }
+  const canonical = allCategories(db).find((c) => c.toLowerCase() === clean.toLowerCase()) || clean;
+  if (doc.category === canonical) { save(db); return doc; }
+
+  const newDir = path.join(paperDir(db, doc.paperId), sanitize(canonical));
+  fs.mkdirSync(newDir, { recursive: true });
+  const moveFile = (absPath) => {
+    if (!absPath || !fs.existsSync(absPath)) return absPath;
+    const base = path.basename(absPath);
+    let dest = path.join(newDir, base);
+    let n = 1;
+    while (fs.existsSync(dest)) {
+      const ext = path.extname(base);
+      dest = path.join(newDir, `${path.basename(base, ext)} (${n++})${ext}`);
+    }
+    try { fs.renameSync(absPath, dest); }
+    catch { try { fs.copyFileSync(absPath, dest); fs.rmSync(absPath, { force: true }); } catch {} }
+    return dest;
+  };
+  doc.absPath = moveFile(doc.absPath);
+  for (const s of doc.summaries) s.absPath = moveFile(s.absPath);
+  doc.category = canonical;
+  save(db);
+  return doc;
+}
+
+// ---- assignments / exams (dated items without generated material) ----------
+
+function addAssignment(semesterId, paperId, name, dueDate, kind) {
+  const db = load();
+  const a = {
+    id: id(),
+    semesterId: semesterId || null,
+    paperId: paperId || null,
+    name: String(name || "").trim() || "Assignment",
+    dueDate: dueDate || null,
+    kind: kind === "exam" ? "exam" : "assignment",
+  };
+  db.assignments.push(a);
+  save(db);
+  return a;
+}
+
+function removeAssignment(assignmentId) {
+  const db = load();
+  db.assignments = db.assignments.filter((a) => a.id !== assignmentId);
+  save(db);
+  return true;
+}
+
+// ---- calendar events / holidays --------------------------------------------
+
+function addEvent(ev) {
+  const db = load();
+  const e = {
+    id: id(),
+    title: String(ev.title || "").trim() || (ev.kind === "holiday" ? "Holiday" : "Event"),
+    date: ev.date,
+    endDate: ev.endDate || null,
+    kind: ev.kind === "holiday" ? "holiday" : "event",
+    note: ev.note || "",
+  };
+  db.events.push(e);
+  save(db);
+  return e;
+}
+
+function removeEvent(eventId) {
+  const db = load();
+  db.events = db.events.filter((e) => e.id !== eventId);
+  save(db);
+  return true;
+}
+
+function addPublicHolidays(list) {
+  const db = load();
+  for (const h of list || []) {
+    if (!h || !h.date) continue;
+    if (db.events.some((e) => e.kind === "holiday" && e.date === h.date)) continue;
+    db.events.push({ id: id(), title: h.title || "Public holiday", date: h.date, endDate: null, kind: "holiday", note: "" });
+  }
+  save(db);
+  return db.events;
+}
+
+// ---- iCal (.ics) export ----------------------------------------------------
+
+const pad2 = (n) => String(n).padStart(2, "0");
+const parseISO = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const toMinLib = (hhmm) => { const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || ""); return m ? +m[1] * 60 + +m[2] : null; };
+const toHHMMLib = (min) => `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`;
+const icsLocal = (d, hhmm) => { const [h, mi] = hhmm.split(":"); return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}T${h}${mi}00`; };
+const icsDate = (d) => `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
+const icsStamp = (d) => `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}T${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}${pad2(d.getUTCSeconds())}Z`;
+const icsEsc = (s) => String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+const BYDAY = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+
+// Recurring weekly classes, bounded by the semester and skipping break weeks.
+function buildTimetableICS() {
+  const db = load();
+  const tt = db.timetable;
+  const now = icsStamp(new Date());
+  const start = tt.termStart ? parseISO(tt.termStart) : new Date();
+  const end = tt.termEnd ? parseISO(tt.termEnd) : new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7 * 16);
+  const breaks = (tt.breaks || []).map((b) => ({ s: parseISO(b.start), e: parseISO(b.end) }));
+  const inBreak = (d) => breaks.some((b) => d >= b.s && d <= b.e);
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//UniNote//Timetable//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:UniNote Timetable"];
+  for (const e of tt.entries) {
+    const s = toMinLib(e.start);
+    if (s == null) continue;
+    const di = e.dayIndex ?? 0;
+    const first = new Date(start);
+    first.setDate(first.getDate() + ((di - ((first.getDay() + 6) % 7) + 7) % 7));
+    if (first > end) continue;
+    const ex = [];
+    for (const cur = new Date(first); cur <= end; cur.setDate(cur.getDate() + 7)) {
+      if (inBreak(cur)) ex.push(new Date(cur));
+    }
+    const endHHMM = toMinLib(e.end) != null ? e.end : toHHMMLib(s + 60);
+    lines.push(
+      "BEGIN:VEVENT", `UID:${e.id}@uninote`, `DTSTAMP:${now}`,
+      `DTSTART:${icsLocal(first, e.start)}`, `DTEND:${icsLocal(first, endHHMM)}`,
+      `RRULE:FREQ=WEEKLY;BYDAY=${BYDAY[di]};UNTIL=${icsLocal(end, "23:59")}`
+    );
+    if (ex.length) lines.push("EXDATE:" + ex.map((d) => icsLocal(d, e.start)).join(","));
+    lines.push(`SUMMARY:${icsEsc(e.title + (e.type ? ` (${e.type})` : ""))}`);
+    if (e.location) lines.push(`LOCATION:${icsEsc(e.location)}`);
+    lines.push("END:VEVENT");
+  }
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n");
+}
+
+// Tests, assignments, exams and dated documents as all-day events.
+function buildAssessmentsICS() {
+  const db = load();
+  const now = icsStamp(new Date());
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//UniNote//Assessments//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:UniNote Tests & Assignments"];
+  const allDay = (uid, dateStr, title) => {
+    const d = parseISO(dateStr);
+    const next = new Date(d); next.setDate(next.getDate() + 1);
+    lines.push("BEGIN:VEVENT", `UID:${uid}@uninote`, `DTSTAMP:${now}`, `DTSTART;VALUE=DATE:${icsDate(d)}`, `DTEND;VALUE=DATE:${icsDate(next)}`, `SUMMARY:${icsEsc(title)}`, "END:VEVENT");
+  };
+  for (const t of db.tests) if (t.dueDate) allDay(`test-${t.id}`, t.dueDate, `Test: ${t.name}`);
+  for (const a of db.assignments) if (a.dueDate) allDay(`asgn-${a.id}`, a.dueDate, `${a.kind === "exam" ? "Exam" : "Assignment"}: ${a.name}`);
+  for (const d of db.docs) if (d.dueDate) allDay(`doc-${d.id}`, d.dueDate, `Due: ${d.fileName}`);
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n");
 }
 
 // ---- per-paper scratchpad -------------------------------------------------
@@ -619,6 +784,14 @@ module.exports = {
   addPaper,
   removeNode,
   registerDoc,
+  setDocCategory,
+  addAssignment,
+  removeAssignment,
+  addEvent,
+  removeEvent,
+  addPublicHolidays,
+  buildTimetableICS,
+  buildAssessmentsICS,
   addSummary,
   removeDoc,
   createNote,

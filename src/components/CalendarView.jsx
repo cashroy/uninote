@@ -319,7 +319,43 @@ function WeekGrid({ entries, byDay, onEdit, onDelete, onMove }) {
   );
 }
 
-export default function CalendarView({ lib, setSel }) {
+// add / edit a calendar event or holiday
+function EventForm({ onClose, onSubmit }) {
+  const [f, setF] = useState({ title: "", date: iso(new Date()), endDate: "", kind: "event", note: "" });
+  const up = (k, v) => setF((s) => ({ ...s, [k]: v }));
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Add to calendar</h2>
+        <h3 className="modal-h3">Title</h3>
+        <input className="text-input" value={f.title} onChange={(e) => up("title", e.target.value)} placeholder="e.g. Study group, Public holiday" autoFocus />
+        <div className="field-row">
+          <div className="field">
+            <h3 className="modal-h3">Type</h3>
+            <select className="text-input" value={f.kind} onChange={(e) => up("kind", e.target.value)}>
+              <option value="event">Event</option>
+              <option value="holiday">Holiday</option>
+            </select>
+          </div>
+          <div className="field">
+            <h3 className="modal-h3">Date</h3>
+            <input type="date" className="text-input" value={f.date} onChange={(e) => up("date", e.target.value)} />
+          </div>
+        </div>
+        <h3 className="modal-h3">End date (optional — for multi-day)</h3>
+        <input type="date" className="text-input" value={f.endDate} onChange={(e) => up("endDate", e.target.value)} />
+        <h3 className="modal-h3">Note (optional)</h3>
+        <input className="text-input" value={f.note} onChange={(e) => up("note", e.target.value)} />
+        <div className="modal-actions">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn primary" disabled={!f.title.trim() || !f.date} onClick={async () => { await onSubmit(f); onClose(); }}>Add</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function CalendarView({ lib, setSel, refresh }) {
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [tt, setTt] = useState({ entries: [], termStart: null, termEnd: null, breaks: [] });
@@ -333,6 +369,10 @@ export default function CalendarView({ lib, setSel }) {
   const [uniOther, setUniOther] = useState(false);
   const [uniBusy, setUniBusy] = useState(false);
   const [uniNote, setUniNote] = useState("");
+  const [showTimetable, setShowTimetable] = useState(false);
+  const [addingEvent, setAddingEvent] = useState(false);
+  const [holBusy, setHolBusy] = useState(false);
+  const [calNote, setCalNote] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -370,6 +410,29 @@ export default function CalendarView({ lib, setSel }) {
     for (const d of collectDeadlines(lib)) (map[d.dueDate] || (map[d.dueDate] = [])).push(d);
     return map;
   }, [lib]);
+
+  const eventsByDate = useMemo(() => {
+    const m = {};
+    for (const e of lib.events || []) if (e.kind === "event") (m[e.date] || (m[e.date] = [])).push(e);
+    return m;
+  }, [lib]);
+  const holidayOn = (di) => (lib.events || []).find((e) => e.kind === "holiday" && di >= e.date && di <= (e.endDate || e.date));
+
+  const deleteEvent = async (ev) => {
+    if (confirm(`Remove "${ev.title}" from the calendar?`)) { await api.removeEvent(ev.id); await refresh(); }
+  };
+  const fillHolidays = async () => {
+    setHolBusy(true); setCalNote("");
+    const res = await api.fillPublicHolidays();
+    setHolBusy(false);
+    if (!res.ok) { setCalNote("⚠️ " + res.error); return; }
+    await refresh();
+    setCalNote(res.count ? `Added ${res.count} public holidays.` : "No public holidays found — check your country in Your university above.");
+  };
+  const exportCal = async (which) => {
+    const res = await api.exportCalendar(which);
+    if (res.ok) setCalNote(`Exported to ${res.path}. Import it into your phone's calendar, or drop it in a cloud folder and subscribe to keep it live.`);
+  };
 
   const byDay = useMemo(() => {
     const m = {};
@@ -430,21 +493,36 @@ export default function CalendarView({ lib, setSel }) {
           <div className="cal-legend">
             <span className="lg test">test</span>
             <span className="lg assignment">assignment</span>
-            <span className="lg klass">class</span>
+            {showTimetable && <span className="lg klass">class</span>}
           </div>
         </div>
+        <div className="cal-controls">
+          <label className="cal-toggle">
+            <input type="checkbox" checked={showTimetable} onChange={(e) => setShowTimetable(e.target.checked)} />
+            Show timetable
+          </label>
+          <button className="btn tiny" onClick={() => setAddingEvent(true)}>＋ Event</button>
+          <button className="btn tiny" disabled={holBusy} onClick={fillHolidays}>{holBusy ? "Fetching…" : "🎌 Public holidays"}</button>
+          <span style={{ flex: 1 }} />
+          <button className="btn tiny" onClick={() => exportCal("timetable")}>⬇ Timetable .ics</button>
+          <button className="btn tiny" onClick={() => exportCal("assessments")}>⬇ Tests &amp; assignments .ics</button>
+        </div>
+        {calNote && <div className="tt-note">{calNote}</div>}
         <div className="cal-grid">
           {DOW.map((d) => <div key={d} className="cal-dow">{d}</div>)}
           {cells.map((d, i) => {
             const inMonth = d.getMonth() === cursor.getMonth();
             const isToday = iso(d) === iso(today);
             const brk = inBreak(iso(d));
+            const hol = holidayOn(iso(d));
             const deadlines = deadlinesByDate[iso(d)] || [];
-            const classes = classesOn(d);
+            const events = eventsByDate[iso(d)] || [];
+            const classes = showTimetable ? classesOn(d) : [];
             return (
-              <div key={i} className={`cal-cell ${inMonth ? "" : "dim"} ${isToday ? "today" : ""} ${brk ? "break" : ""}`}>
+              <div key={i} className={`cal-cell ${inMonth ? "" : "dim"} ${isToday ? "today" : ""} ${brk || hol ? "break" : ""}`}>
                 <div className="cal-num">{d.getDate()}</div>
                 {brk && inMonth && <div className="cal-break">{brk.label || "Break"}</div>}
+                {hol && inMonth && <div className="cal-break">🎌 {hol.title}</div>}
                 {deadlines.map((it, k) => {
                   const info = dueInfo(it.dueDate);
                   return (
@@ -453,6 +531,11 @@ export default function CalendarView({ lib, setSel }) {
                     </button>
                   );
                 })}
+                {events.map((ev) => (
+                  <button key={ev.id} className="cal-chip event" title={`${ev.title}${ev.note ? " — " + ev.note : ""} (click to remove)`} onClick={() => deleteEvent(ev)}>
+                    📌 {ev.title}
+                  </button>
+                ))}
                 {classes.map((c) => (
                   <div key={c.id} className="cal-chip klass" style={cardStyle(c)} title={`${c.title}${c.location ? " · " + c.location : ""}`}>
                     {c.start} {c.title}
@@ -591,6 +674,12 @@ export default function CalendarView({ lib, setSel }) {
         )}
       </section>
 
+      {addingEvent && (
+        <EventForm
+          onClose={() => setAddingEvent(false)}
+          onSubmit={async (f) => { await api.addEvent(f); await refresh(); }}
+        />
+      )}
       {importing && <TimetableImport existing={tt.entries} onClose={() => setImporting(false)} onSaved={loadTT} />}
       {editing && (
         <EntryForm

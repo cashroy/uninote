@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { fmtDate, dueInfo } from "../util.js";
 import MarkdownModal from "./MarkdownModal.jsx";
 import CreateTestModal from "./CreateTestModal.jsx";
+import AssignmentModal from "./AssignmentModal.jsx";
 
 const api = window.uninote;
 
 export default function SemesterView({ lib, semId, refresh, setSel }) {
   const [showCreate, setShowCreate] = useState(false);
+  const [showAssignment, setShowAssignment] = useState(false);
   const [editingTest, setEditingTest] = useState(null);
   const [generating, setGenerating] = useState({});
   const [viewing, setViewing] = useState(null);
@@ -44,6 +46,7 @@ export default function SemesterView({ lib, semId, refresh, setSel }) {
           <h1>{sem.name}</h1>
         </div>
         <div className="header-actions">
+          <button className="btn" onClick={() => setShowAssignment(true)}>✍️ New assignment</button>
           <button className="btn primary" onClick={() => setShowCreate(true)}>
             📝 Create test
           </button>
@@ -173,6 +176,9 @@ export default function SemesterView({ lib, semId, refresh, setSel }) {
           test={editingTest}
           onClose={() => setEditingTest(null)}
         />
+      )}
+      {showAssignment && (
+        <AssignmentModal lib={lib} filterSemId={semId} refresh={refresh} onClose={() => setShowAssignment(false)} />
       )}
       {viewing && (
         <MarkdownModal title={viewing.title} absPath={viewing.absPath} onClose={() => setViewing(null)} />

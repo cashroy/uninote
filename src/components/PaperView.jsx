@@ -12,10 +12,17 @@ const api = window.uninote;
 
 const isFlashcardSummary = (s) => /flashcard/i.test(s.mode);
 
-function DocCard({ doc, refresh, onView, onSummarize, onEditNote, onReview, onOpenDoc }) {
+function DocCard({ doc, refresh, onView, onSummarize, onEditNote, onReview, onOpenDoc, categories, onSetCategory }) {
   const due = dueInfo(doc.dueDate);
+  const [newCatOpen, setNewCatOpen] = useState(false);
+  const [newCat, setNewCat] = useState("");
+  const applyNewCat = () => { const v = newCat.trim(); if (v) { onSetCategory(doc.id, v); setNewCat(""); setNewCatOpen(false); } };
   return (
-    <div className="doc-card">
+    <div
+      className="doc-card"
+      draggable
+      onDragStart={(e) => { e.dataTransfer.setData("text/plain", doc.id); e.dataTransfer.effectAllowed = "move"; }}
+    >
       <div className="doc-main" onClick={() => (doc.isNote ? onEditNote(doc) : onOpenDoc(doc))} title={doc.isNote ? "Edit note" : "View document"}>
         <span className="doc-icon">{doc.isNote ? "🗒️" : fileIcon(doc.fileName)}</span>
         <div className="doc-meta">
@@ -80,6 +87,36 @@ function DocCard({ doc, refresh, onView, onSummarize, onEditNote, onReview, onOp
           <button className="btn tiny" onClick={() => onEditNote(doc)}>✏️ Edit</button>
         )}
         <button className="btn tiny" onClick={() => onSummarize(doc)}>✨ Summarise</button>
+        <select
+          className="week-select cat-move"
+          title="Change category"
+          value=""
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) return;
+            if (v === "__new__") setNewCatOpen(true);
+            else onSetCategory(doc.id, v);
+          }}
+        >
+          <option value="">Move to…</option>
+          {(categories || []).filter((c) => c !== doc.category).map((c) => <option key={c} value={c}>{c}</option>)}
+          <option value="__new__">＋ New category…</option>
+        </select>
+        {newCatOpen && (
+          <span className="cat-new">
+            <input
+              className="cat-new-input"
+              placeholder="New category"
+              value={newCat}
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => setNewCat(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && applyNewCat()}
+            />
+            <button className="btn tiny" onClick={applyNewCat}>✓</button>
+          </span>
+        )}
         <button
           className="btn tiny danger"
           onClick={async () => {
@@ -104,6 +141,8 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
   const [viewingDoc, setViewingDoc] = useState(null); // doc opened in viewer
   const [weekFilter, setWeekFilter] = useState(null); // number | "none" | null
   const [formulaSheet, setFormulaSheet] = useState(false);
+  const [dropCat, setDropCat] = useState(null);
+  const changeCategory = async (docId, cat) => { await api.setDocCategory(docId, cat); await refresh(); };
 
   let paper = null;
   let crumbs = "";
@@ -232,7 +271,18 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
 
         {orderedCats
           .map((cat) => (
-            <section key={cat} className="category-section">
+            <section
+              key={cat}
+              className={`category-section ${dropCat === cat ? "drop-target" : ""}`}
+              onDragOver={(e) => { e.preventDefault(); if (dropCat !== cat) setDropCat(cat); }}
+              onDragLeave={(e) => { if (e.currentTarget === e.target) setDropCat(null); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const id = e.dataTransfer.getData("text/plain");
+                setDropCat(null);
+                if (id) changeCategory(id, cat);
+              }}
+            >
               <h2>
                 <span className="cat-icon">{CATEGORY_ICONS[cat] || "📁"}</span> {cat}
                 <span className="cat-count">{byCategory[cat].length}</span>
@@ -251,6 +301,8 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
                       onEditNote={setEditingNote}
                       onReview={setReviewing}
                       onOpenDoc={setViewingDoc}
+                      categories={lib.categories}
+                      onSetCategory={changeCategory}
                     />
                   ))}
               </div>

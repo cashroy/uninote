@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { dueInfo, fmtDate } from "../util.js";
 import CreateTestModal from "./CreateTestModal.jsx";
+import AssignmentModal from "./AssignmentModal.jsx";
+
+const api = window.uninote;
 
 // Collects every dated item: tests with dueDate + docs (assignments etc.) with dueDate.
 export function collectDeadlines(lib) {
@@ -41,10 +44,26 @@ export function collectDeadlines(lib) {
         : { kind: "all" },
     });
   }
+  for (const a of lib.assignments || []) {
+    if (!a.dueDate) continue;
+    const loc = a.paperId ? paperLoc[a.paperId] : null;
+    const semLocA = a.semesterId ? semLoc[a.semesterId] : null;
+    items.push({
+      kind: a.kind === "exam" ? "exam" : "assignment",
+      icon: a.kind === "exam" ? "🎓" : "✍️",
+      title: a.name,
+      dueDate: a.dueDate,
+      assignmentId: a.id,
+      where: loc ? `${loc.label} · ${loc.code}` : semLocA ? semLocA.label : "",
+      nav: loc
+        ? { kind: "paper", paperId: a.paperId, semId: loc.semId, yearId: loc.yearId }
+        : semLocA ? { kind: "semester", semId: a.semesterId, yearId: semLocA.yearId } : { kind: "all" },
+    });
+  }
   return items.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 
-export function DeadlineRow({ item, setSel }) {
+export function DeadlineRow({ item, setSel, onDelete }) {
   const info = dueInfo(item.dueDate);
   return (
     <div
@@ -62,15 +81,24 @@ export function DeadlineRow({ item, setSel }) {
         </div>
         <div className="deadline-date">{fmtDate(item.dueDate)}</div>
       </div>
+      {onDelete && item.assignmentId && (
+        <button
+          className="break-x"
+          title="Delete"
+          onClick={(e) => { e.stopPropagation(); onDelete(item.assignmentId); }}
+        >×</button>
+      )}
     </div>
   );
 }
 
 export default function DeadlinesView({ lib, setSel, refresh }) {
   const [showCreate, setShowCreate] = useState(false);
+  const [showAssignment, setShowAssignment] = useState(false);
   const items = useMemo(() => collectDeadlines(lib), [lib]);
   const overdue = items.filter((i) => dueInfo(i.dueDate).overdue);
   const upcoming = items.filter((i) => !dueInfo(i.dueDate).overdue);
+  const delAssignment = async (id) => { if (confirm("Delete this item?")) { await api.removeAssignment(id); await refresh(); } };
 
   return (
     <div className="view">
@@ -80,6 +108,7 @@ export default function DeadlinesView({ lib, setSel, refresh }) {
           <h1>Deadlines</h1>
         </div>
         <div className="header-actions">
+          <button className="btn" onClick={() => setShowAssignment(true)}>✍️ New assignment</button>
           <button className="btn primary" onClick={() => setShowCreate(true)}>📝 New test</button>
         </div>
       </header>
@@ -98,7 +127,7 @@ export default function DeadlinesView({ lib, setSel, refresh }) {
         <section className="category-section">
           <h2>⚠️ Overdue</h2>
           <div className="deadline-list">
-            {overdue.map((i, k) => <DeadlineRow key={k} item={i} setSel={setSel} />)}
+            {overdue.map((i, k) => <DeadlineRow key={k} item={i} setSel={setSel} onDelete={delAssignment} />)}
           </div>
         </section>
       )}
@@ -107,7 +136,7 @@ export default function DeadlinesView({ lib, setSel, refresh }) {
         <section className="category-section">
           <h2>Upcoming</h2>
           <div className="deadline-list">
-            {upcoming.map((i, k) => <DeadlineRow key={k} item={i} setSel={setSel} />)}
+            {upcoming.map((i, k) => <DeadlineRow key={k} item={i} setSel={setSel} onDelete={delAssignment} />)}
           </div>
         </section>
       )}
@@ -118,6 +147,9 @@ export default function DeadlinesView({ lib, setSel, refresh }) {
           refresh={refresh}
           onClose={() => setShowCreate(false)}
         />
+      )}
+      {showAssignment && (
+        <AssignmentModal lib={lib} refresh={refresh} onClose={() => setShowAssignment(false)} />
       )}
     </div>
   );

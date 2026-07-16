@@ -202,6 +202,19 @@ Respond with ONLY a JSON object, no other text:
   };
 }
 
+// Best-effort public holidays for a country/year, for marking on the calendar.
+async function publicHolidays(country, year) {
+  if (!country) return [];
+  const prompt = `List the official public holidays in ${country} for the calendar year ${year}. Respond with ONLY a JSON array of {"date":"YYYY-MM-DD","title":"Holiday name"} objects, one per public holiday, no other text.`;
+  const raw = await claude.complete({ prompt, maxTokens: 2000, model: "sonnet", thinking: false });
+  try {
+    const arr = JSON.parse(extractJson(raw, "[", "]") ?? raw);
+    return Array.isArray(arr) ? arr.filter((h) => h && /^\d{4}-\d{2}-\d{2}$/.test(h.date)) : [];
+  } catch {
+    return [];
+  }
+}
+
 // ---- summarisation --------------------------------------------------------
 
 async function summarize(doc, mode, customInstruction, onDelta) {
@@ -457,4 +470,4 @@ Rules: only ever edit notes listed above (never uploaded documents). When writin
   return { text, contextSource, changed };
 }
 
-module.exports = { classify, summarize, generateTestMaterial, generateFormulaSheet, chat, parseTimetable, assistTimetable, SUMMARY_MODES };
+module.exports = { classify, summarize, generateTestMaterial, generateFormulaSheet, chat, parseTimetable, assistTimetable, publicHolidays, SUMMARY_MODES };

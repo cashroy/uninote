@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld("uninote", {
   readBytes: (absPath) => ipcRenderer.invoke("doc:readBytes", absPath),
   renderDoc: (absPath) => ipcRenderer.invoke("doc:render", absPath),
   deleteDoc: (docId) => ipcRenderer.invoke("doc:delete", docId),
+  setDocCategory: (docId, category) => ipcRenderer.invoke("doc:setCategory", docId, category),
   getDocNote: (docId) => ipcRenderer.invoke("docnote:get", docId),
   saveDocNote: (docId, text) => ipcRenderer.invoke("docnote:save", docId, text),
 
@@ -81,6 +82,17 @@ contextBridge.exposeInMainWorld("uninote", {
   removeTimetableEntry: (entryId) => ipcRenderer.invoke("timetable:removeEntry", entryId),
   parseTimetableFile: (filePath) => ipcRenderer.invoke("timetable:parseFile", filePath),
   assistTimetable: (instruction) => ipcRenderer.invoke("timetable:assist", instruction),
+
+  // assignments / exams
+  addAssignment: (semId, paperId, name, dueDate, kind) =>
+    ipcRenderer.invoke("assignment:add", semId, paperId, name, dueDate, kind),
+  removeAssignment: (assignmentId) => ipcRenderer.invoke("assignment:remove", assignmentId),
+
+  // calendar events / holidays / export
+  addEvent: (ev) => ipcRenderer.invoke("event:add", ev),
+  removeEvent: (eventId) => ipcRenderer.invoke("event:remove", eventId),
+  fillPublicHolidays: () => ipcRenderer.invoke("calendar:publicHolidays"),
+  exportCalendar: (which) => ipcRenderer.invoke("calendar:export", which),
 
   // search
   globalSearch: (query) => ipcRenderer.invoke("search:global", query),

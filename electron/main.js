@@ -236,6 +236,7 @@ ipcMain.handle("doc:readBytes", (_e, absPath) => {
   };
 });
 ipcMain.handle("doc:delete", (_e, docId) => library.removeDoc(docId));
+ipcMain.handle("doc:setCategory", (_e, docId, category) => library.setDocCategory(docId, category));
 
 // Rich viewer rendering (docx -> HTML, pptx -> slides). PDFs/images/text are
 // handled directly in the renderer via readBytes/readFile.
@@ -319,6 +320,43 @@ ipcMain.handle("formula:generate", async (_e, paperId, scope, custom, title) => 
   } catch (err) {
     return { ok: false, error: err.message || String(err) };
   }
+});
+
+// ---- assignments / exams -------------------------------------------------------
+
+ipcMain.handle("assignment:add", (_e, semId, paperId, name, dueDate, kind) =>
+  library.addAssignment(semId, paperId, name, dueDate, kind)
+);
+ipcMain.handle("assignment:remove", (_e, assignmentId) => library.removeAssignment(assignmentId));
+
+// ---- calendar events / holidays / export ---------------------------------------
+
+ipcMain.handle("event:add", (_e, ev) => library.addEvent(ev));
+ipcMain.handle("event:remove", (_e, eventId) => library.removeEvent(eventId));
+
+ipcMain.handle("calendar:publicHolidays", async () => {
+  const country = store.getSettings().universityCountry || "";
+  if (!country) return { ok: false, error: "Set your university (with a country) in the Calendar first." };
+  try {
+    const list = await ai.publicHolidays(country, new Date().getFullYear());
+    library.addPublicHolidays(list);
+    return { ok: true, count: list.length };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+
+ipcMain.handle("calendar:export", async (_e, which) => {
+  const fs = require("fs");
+  const ics = which === "timetable" ? library.buildTimetableICS() : library.buildAssessmentsICS();
+  const defaultName = which === "timetable" ? "UniNote-Timetable.ics" : "UniNote-Assessments.ics";
+  const res = await dialog.showSaveDialog(win, {
+    defaultPath: defaultName,
+    filters: [{ name: "Calendar", extensions: ["ics"] }],
+  });
+  if (res.canceled || !res.filePath) return { ok: false };
+  fs.writeFileSync(res.filePath, ics, "utf8");
+  return { ok: true, path: res.filePath };
 });
 
 // ---- global search ------------------------------------------------------------
