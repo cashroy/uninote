@@ -371,6 +371,20 @@ async function executeAction(act, scope, db) {
     library.updateNote(act.docId, act.content || "");
     return { changed: true, note: `Updated note “${doc.fileName}”.` };
   }
+  if (act.action === "add_assignment") {
+    if (!act.dueDate) return { changed: false, note: "What's the due date? Tell me and I'll add it." };
+    let paperId = act.paperId && library.findPaper(db, act.paperId) ? act.paperId : (scope?.kind === "paper" ? scope.id : null);
+    const semesterId = paperId ? library.findPaper(db, paperId).sem.id : (scope?.kind === "semester" ? scope.id : null);
+    const a = library.addAssignment(semesterId, paperId, act.name || "Assignment", act.dueDate, act.kind === "exam" ? "exam" : "assignment");
+    return { changed: true, note: `Added ${a.kind} “${a.name}” due ${a.dueDate} to your deadlines.` };
+  }
+  if (act.action === "add_test") {
+    let paperId = act.paperId && library.findPaper(db, act.paperId) ? act.paperId : (scope?.kind === "paper" ? scope.id : null);
+    const semesterId = paperId ? library.findPaper(db, paperId).sem.id : (scope?.kind === "semester" ? scope.id : null);
+    if (!semesterId) return { changed: false, note: "Which paper or semester is the test for? Tell me and I'll add it." };
+    const t = library.createTest(semesterId, act.name || "Test", [], null, paperId, act.dueDate || null);
+    return { changed: true, note: `Added test “${t.name}”${t.dueDate ? ` due ${t.dueDate}` : ""} to your deadlines — open the semester to pick what it covers and generate study material.` };
+  }
   return { changed: false, note: "" };
 }
 
@@ -432,11 +446,13 @@ ${fileList || "(none yet)"}
 Notes you may edit (id → title):
 ${editableNotes || "(none)"}
 
-Papers you may add a note to (id → code):
+Papers you may add a note, assignment or test to (id → code):
 ${paperTargets || "(none)"}
 
 Current timetable / calendar JSON:
 ${JSON.stringify(timetable)}
+
+Today's date is ${new Date().toISOString().slice(0, 10)} — use it to work out dates like "next Friday" or "in two weeks".
 
 ${historyBlock ? `Conversation so far:\n${historyBlock}\n\n` : ""}Student's question: ${question}`;
 
@@ -448,8 +464,10 @@ Actions:
 - Edit the calendar/timetable: {"action":"timetable","instruction":"<plain-English change, e.g. add a STAT201 lecture Monday 9-10 in Room 4, move the lab to Thursday, or set the semester end to 14 June>"}
 - Create a note (new material): {"action":"create_note","paperId":"<id from the papers list>","title":"<title>","content":"<full note as Markdown>"}
 - Edit an existing note: {"action":"edit_note","docId":"<id from the editable-notes list>","content":"<the complete new Markdown>"}
+- Add an assignment or exam to their deadlines: {"action":"add_assignment","name":"<e.g. STAT201 Assignment 2>","dueDate":"YYYY-MM-DD","kind":"assignment" or "exam","paperId":"<id from the papers list, optional>"}
+- Add a test to their deadlines: {"action":"add_test","name":"<e.g. STAT201 Midterm>","dueDate":"YYYY-MM-DD","paperId":"<id from the papers list, optional>"}
 
-Rules: only ever edit notes listed above (never uploaded documents). When writing note content, output the whole document, not a diff. If the target paper is ambiguous, ask instead of guessing. Only include an action block when the student actually asked you to change something.`;
+Rules: only ever edit notes listed above (never uploaded documents). When writing note content, output the whole document, not a diff. Resolve relative dates against today's date and always give dueDate as YYYY-MM-DD. A test needs a paper or semester — if the target paper is ambiguous, ask instead of guessing. Only include an action block when the student actually asked you to change something.`;
 
   const raw = await claude.complete({ system, prompt, maxTokens: 8000, onDelta });
 
