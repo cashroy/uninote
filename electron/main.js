@@ -334,6 +334,13 @@ ipcMain.handle("assignment:add", (_e, semId, paperId, name, dueDate, kind) =>
 );
 ipcMain.handle("assignment:remove", (_e, assignmentId) => library.removeAssignment(assignmentId));
 
+// ---- general todo list ---------------------------------------------------------
+
+ipcMain.handle("todo:add", (_e, text, dueDate) => library.addTodo(text, dueDate));
+ipcMain.handle("todo:toggle", (_e, todoId) => library.toggleTodo(todoId));
+ipcMain.handle("todo:update", (_e, todoId, patch) => library.updateTodo(todoId, patch));
+ipcMain.handle("todo:remove", (_e, todoId) => library.removeTodo(todoId));
+
 // ---- calendar events / holidays / export ---------------------------------------
 
 ipcMain.handle("event:add", (_e, ev) => library.addEvent(ev));

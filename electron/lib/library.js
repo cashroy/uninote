@@ -46,6 +46,7 @@ function load() {
   if (!db.docNotes) db.docNotes = {};
   if (!db.formulaSheets) db.formulaSheets = [];
   if (!db.assignments) db.assignments = [];
+  if (!db.todos) db.todos = [];
   if (!db.events) db.events = [];
   if (!db.customCategories) db.customCategories = [];
   if (!db.timetable) db.timetable = { entries: [] };
@@ -441,6 +442,50 @@ function removeAssignment(assignmentId) {
   return true;
 }
 
+// ---- general todo list (not tied to a paper or semester) -------------------
+
+function addTodo(text, dueDate) {
+  const db = load();
+  const t = {
+    id: id(),
+    text: String(text || "").trim() || "Todo",
+    done: false,
+    dueDate: dueDate || null,
+    createdAt: new Date().toISOString(),
+  };
+  db.todos.push(t);
+  save(db);
+  return t;
+}
+
+function toggleTodo(todoId) {
+  const db = load();
+  const t = db.todos.find((x) => x.id === todoId);
+  if (!t) return null;
+  t.done = !t.done;
+  save(db);
+  return t;
+}
+
+function updateTodo(todoId, patch) {
+  const db = load();
+  const t = db.todos.find((x) => x.id === todoId);
+  if (!t) return null;
+  const p = patch || {};
+  if ("text" in p) t.text = String(p.text || "").trim() || t.text;
+  if ("dueDate" in p) t.dueDate = p.dueDate || null;
+  if ("done" in p) t.done = !!p.done;
+  save(db);
+  return t;
+}
+
+function removeTodo(todoId) {
+  const db = load();
+  db.todos = db.todos.filter((t) => t.id !== todoId);
+  save(db);
+  return true;
+}
+
 // ---- calendar events / holidays --------------------------------------------
 
 function addEvent(ev) {
@@ -787,6 +832,10 @@ module.exports = {
   setDocCategory,
   addAssignment,
   removeAssignment,
+  addTodo,
+  toggleTodo,
+  updateTodo,
+  removeTodo,
   addEvent,
   removeEvent,
   addPublicHolidays,

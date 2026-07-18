@@ -515,6 +515,19 @@ body {
 .category-section h2 .see-all { font-family: var(--sans); }
 .deadline-nav { margin: 0 10px 6px; width: calc(100% - 20px); }
 
+/* ---------- todos ---------- */
+.todo-add { display: flex; gap: 8px; margin-bottom: 20px; }
+.todo-add input {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 10px 13px; font: inherit; font-size: 13.5px; color: var(--ink);
+}
+.todo-add input[type="text"] { flex: 1; min-width: 0; }
+.todo-add input:focus { outline: none; border-color: var(--accent); }
+.todo-row { cursor: default; }
+.todo-row:hover { border-color: var(--line); }
+.todo-row.done .deadline-title { text-decoration: line-through; color: var(--ink-3); }
+.todo-check { width: 17px; height: 17px; flex-shrink: 0; cursor: pointer; accent-color: var(--accent); }
+
 /* ---------- global search ---------- */
 .search-trigger {
   margin: 0 10px 8px; padding: 7px 12px; border-radius: 8px;

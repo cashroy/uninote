@@ -88,6 +88,12 @@ contextBridge.exposeInMainWorld("uninote", {
     ipcRenderer.invoke("assignment:add", semId, paperId, name, dueDate, kind),
   removeAssignment: (assignmentId) => ipcRenderer.invoke("assignment:remove", assignmentId),
 
+  // general todo list
+  addTodo: (text, dueDate) => ipcRenderer.invoke("todo:add", text, dueDate),
+  toggleTodo: (todoId) => ipcRenderer.invoke("todo:toggle", todoId),
+  updateTodo: (todoId, patch) => ipcRenderer.invoke("todo:update", todoId, patch),
+  removeTodo: (todoId) => ipcRenderer.invoke("todo:remove", todoId),
+
   // calendar events / holidays / export
   addEvent: (ev) => ipcRenderer.invoke("event:add", ev),
   removeEvent: (eventId) => ipcRenderer.invoke("event:remove", eventId),

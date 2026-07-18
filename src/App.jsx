@@ -7,6 +7,7 @@ import YearView from "./components/YearView.jsx";
 import HomeView from "./components/HomeView.jsx";
 import SettingsView from "./components/SettingsView.jsx";
 import DeadlinesView from "./components/DeadlinesView.jsx";
+import TodosView from "./components/TodosView.jsx";
 import CalendarView from "./components/CalendarView.jsx";
 import AllDocsView from "./components/AllDocsView.jsx";
 import SearchOverlay from "./components/SearchOverlay.jsx";
@@ -149,6 +150,8 @@ export default function App() {
   let view = null;
   if (sel.kind === "deadlines") {
     view = <DeadlinesView lib={lib} setSel={setSel} refresh={refresh} />;
+  } else if (sel.kind === "todos") {
+    view = <TodosView lib={lib} refresh={refresh} />;
   } else if (sel.kind === "calendar") {
     view = <CalendarView lib={lib} setSel={setSel} refresh={refresh} />;
   } else if (sel.kind === "alldocs") {

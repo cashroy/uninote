@@ -70,6 +70,12 @@ export default function Sidebar({ lib, sel, setSel, refresh, onSearch }) {
         🗓️ Deadlines
       </button>
       <button
+        className={`nav-btn deadline-nav ${sel.kind === "todos" ? "active" : ""}`}
+        onClick={() => setSel({ kind: "todos" })}
+      >
+        ✅ To-do
+      </button>
+      <button
         className={`nav-btn deadline-nav ${sel.kind === "alldocs" ? "active" : ""}`}
         onClick={() => setSel({ kind: "alldocs" })}
       >

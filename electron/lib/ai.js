@@ -348,6 +348,18 @@ function papersInScope(db, scope) {
   return out;
 }
 
+// An action block holds either a single action object or an array of them, so the
+// assistant can create several items (a whole assessment schedule) in one reply.
+function parseActions(body) {
+  const s = String(body || "").trim();
+  const arrAt = s.indexOf("[");
+  const objAt = s.indexOf("{");
+  const isArray = arrAt !== -1 && (objAt === -1 || arrAt < objAt);
+  const json = (isArray ? extractJson(s, "[", "]") : extractJson(s, "{", "}")) ?? s;
+  const parsed = JSON.parse(json);
+  return (Array.isArray(parsed) ? parsed : [parsed]).filter((a) => a && a.action);
+}
+
 // Execute an action the assistant asked for. Only touches the student's own data
 // and only edits notes made in-app (never uploaded documents).
 async function executeAction(act, scope, db) {
@@ -458,7 +470,7 @@ ${historyBlock ? `Conversation so far:\n${historyBlock}\n\n` : ""}Student's ques
 
   const system = `You are a study assistant embedded in UniNote, the student's notes organiser. Answer questions using the provided document context, and say so when the notes don't cover something. Be concrete and cite which document information came from. Use Markdown.
 
-You can also make changes for the student. When they ask you to change their timetable/calendar, or to create or edit a note, do it by ENDING your reply with exactly ONE fenced code block labelled action containing a JSON object. Write your normal, friendly reply first; never mention the JSON block.
+You can also make changes for the student. When they ask you to change their timetable/calendar, to create or edit a note, or to add things to their deadlines, do it by ENDING your reply with exactly ONE fenced code block labelled action. The block contains either a single JSON action object, or a JSON ARRAY of action objects when the student asked for more than one thing — an array lets you enter a whole assessment schedule from a single message. Write your normal, friendly reply first; never mention the JSON block.
 
 Actions:
 - Edit the calendar/timetable: {"action":"timetable","instruction":"<plain-English change, e.g. add a STAT201 lecture Monday 9-10 in Room 4, move the lab to Thursday, or set the semester end to 14 June>"}
@@ -467,23 +479,44 @@ Actions:
 - Add an assignment or exam to their deadlines: {"action":"add_assignment","name":"<e.g. STAT201 Assignment 2>","dueDate":"YYYY-MM-DD","kind":"assignment" or "exam","paperId":"<id from the papers list, optional>"}
 - Add a test to their deadlines: {"action":"add_test","name":"<e.g. STAT201 Midterm>","dueDate":"YYYY-MM-DD","paperId":"<id from the papers list, optional>"}
 
-Rules: only ever edit notes listed above (never uploaded documents). When writing note content, output the whole document, not a diff. Resolve relative dates against today's date and always give dueDate as YYYY-MM-DD. A test needs a paper or semester — if the target paper is ambiguous, ask instead of guessing. Only include an action block when the student actually asked you to change something.`;
+Several items at once — one object per item, in a single array:
+[{"action":"add_assignment","name":"STAT201 Assignment 1","dueDate":"2025-08-04","kind":"assignment","paperId":"<id>"},{"action":"add_assignment","name":"STAT201 Assignment 2","dueDate":"2025-09-01","kind":"assignment","paperId":"<id>"},{"action":"add_test","name":"STAT201 Midterm","dueDate":"2025-09-15","paperId":"<id>"}]
+
+Rules: only ever edit notes listed above (never uploaded documents). When writing note content, output the whole document, not a diff. Resolve relative dates against today's date and always give dueDate as YYYY-MM-DD. Add EVERY item the student listed — if they give you five assessments, return five objects in the array, never just the first one. A test needs a paper or semester — if the target paper is ambiguous, ask instead of guessing. Only include an action block when the student actually asked you to change something.`;
 
   const raw = await claude.complete({ system, prompt, maxTokens: 8000, onDelta });
 
   let text = raw;
   let changed = false;
-  const m = raw.match(/```action\s*([\s\S]*?)```/i);
-  if (m) {
-    text = raw.replace(m[0], "").trim();
-    try {
-      const act = JSON.parse(extractJson(m[1], "{", "}") ?? m[1]);
-      const r = await executeAction(act, scope, db);
-      changed = r.changed;
-      if (r.note) text += `\n\n*${r.note}*`;
-    } catch (e) {
-      text += `\n\n*Sorry — I couldn't apply that change (${e.message}).*`;
+  const blocks = [...raw.matchAll(/```action\s*([\s\S]*?)```/gi)];
+  if (blocks.length) {
+    const notes = [];
+    let cur = db;
+    for (const m of blocks) {
+      text = text.replace(m[0], "");
+      let acts;
+      try {
+        acts = parseActions(m[1]);
+      } catch (e) {
+        notes.push(`Sorry — I couldn't apply that change (${e.message}).`);
+        continue;
+      }
+      for (const act of acts) {
+        try {
+          const r = await executeAction(act, scope, cur);
+          if (r.changed) {
+            changed = true;
+            cur = library.load(); // so later actions in the batch see earlier ones
+          }
+          if (r.note) notes.push(r.note);
+        } catch (e) {
+          notes.push(`Sorry — I couldn't apply that change (${e.message}).`);
+        }
+      }
     }
+    text = text.trim();
+    if (notes.length === 1) text += `\n\n*${notes[0]}*`;
+    else if (notes.length) text += `\n\n${notes.map((n) => `- *${n}*`).join("\n")}`;
   }
   return { text, contextSource, changed };
 }
