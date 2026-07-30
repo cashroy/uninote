@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import SummarizeDialog from "./SummarizeDialog.jsx";
-import { fileIcon } from "../util.js";
+import { FileIcon } from "../icons.jsx";
 
 const api = window.uninote;
 
@@ -146,7 +146,7 @@ export default function IngestFlow({ lib, sel, paths, onClose, refresh }) {
           <div className="confirm-list">
             {analyzed.map((item) => (
               <div key={item.srcPath} className="confirm-card">
-                <span className="doc-icon">{fileIcon(item.fileName)}</span>
+                <span className="doc-icon"><FileIcon fileName={item.fileName} size={20} /></span>
                 <div className="confirm-main">
                   <div className="confirm-name">{item.fileName}</div>
                   <div className="confirm-guess">

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { md } from "../util.js";
+import { Sigma } from "lucide-react";
 
 const api = window.uninote;
 
@@ -52,7 +53,7 @@ export default function FormulaSheetModal({ paperId, paperLabel, onClose, onDone
   return (
     <div className="modal-backdrop" onClick={() => !running && onClose()}>
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
-        <h2>📐 New formula sheet — {paperLabel}</h2>
+        <h2><Sigma size={18} /> New formula sheet — {paperLabel}</h2>
         <p className="modal-sub">
           The AI reads this paper's material and builds a formula sheet. Choose what goes on it — you
           can make as many as you like (e.g. one of formulas, one of definitions).

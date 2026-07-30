@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { fileIcon, fmtDate, dueInfo, CATEGORY_ICONS, WEEKS } from "../util.js";
+import { fmtDate, dueInfo, WEEKS } from "../util.js";
+import { FileIcon, CategoryIcon } from "../icons.jsx";
+import { NotebookPen, Sigma, Upload, Sparkles, Play, SquarePen, Check, BookOpen } from "lucide-react";
 import MarkdownModal from "./MarkdownModal.jsx";
 import SummarizeDialog from "./SummarizeDialog.jsx";
 import FormulaSheetModal, { SCOPE_LABEL } from "./FormulaSheetModal.jsx";
@@ -24,7 +26,7 @@ function DocCard({ doc, refresh, onView, onSummarize, onEditNote, onReview, onOp
       onDragStart={(e) => { e.dataTransfer.setData("text/plain", doc.id); e.dataTransfer.effectAllowed = "move"; }}
     >
       <div className="doc-main" onClick={() => (doc.isNote ? onEditNote(doc) : onOpenDoc(doc))} title={doc.isNote ? "Edit note" : "View document"}>
-        <span className="doc-icon">{doc.isNote ? "🗒️" : fileIcon(doc.fileName)}</span>
+        <span className="doc-icon"><FileIcon fileName={doc.fileName} isNote={doc.isNote} size={22} /></span>
         <div className="doc-meta">
           <div className="doc-name">{doc.fileName}</div>
           <div className="doc-date">
@@ -58,11 +60,11 @@ function DocCard({ doc, refresh, onView, onSummarize, onEditNote, onReview, onOp
           {doc.summaries.map((s) => (
             <span key={s.id} className="summary-chip-group">
               <button className="summary-chip" title="View summary" onClick={() => onView({ title: s.fileName, absPath: s.absPath })}>
-                ✨ {s.mode}
+                <Sparkles size={13} /> {s.mode}
               </button>
               {isFlashcardSummary(s) && (
                 <button className="summary-chip play" title="Review flashcards" onClick={() => onReview(s)}>
-                  ▶
+                  <Play size={13} />
                 </button>
               )}
             </span>
@@ -84,9 +86,9 @@ function DocCard({ doc, refresh, onView, onSummarize, onEditNote, onReview, onOp
           />
         )}
         {doc.isNote && (
-          <button className="btn tiny" onClick={() => onEditNote(doc)}>✏️ Edit</button>
+          <button className="btn tiny" onClick={() => onEditNote(doc)}><SquarePen size={13} /> Edit</button>
         )}
-        <button className="btn tiny" onClick={() => onSummarize(doc)}>✨ Summarise</button>
+        <button className="btn tiny" onClick={() => onSummarize(doc)}><Sparkles size={13} /> Summarise</button>
         <select
           className="week-select cat-move"
           title="Change category"
@@ -101,7 +103,7 @@ function DocCard({ doc, refresh, onView, onSummarize, onEditNote, onReview, onOp
         >
           <option value="">Move to…</option>
           {(categories || []).filter((c) => c !== doc.category).map((c) => <option key={c} value={c}>{c}</option>)}
-          <option value="__new__">＋ New category…</option>
+          <option value="__new__">+ New category…</option>
         </select>
         {newCatOpen && (
           <span className="cat-new">
@@ -114,7 +116,7 @@ function DocCard({ doc, refresh, onView, onSummarize, onEditNote, onReview, onOp
               onChange={(e) => setNewCat(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && applyNewCat()}
             />
-            <button className="btn tiny" onClick={applyNewCat}>✓</button>
+            <button className="btn tiny" onClick={applyNewCat}><Check size={13} /></button>
           </span>
         )}
         <button
@@ -190,10 +192,10 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
           </div>
           <div className="header-actions">
             <button className="btn" onClick={() => setEditingNote("new")}>
-              🗒️ New note
+              <NotebookPen size={15} /> New note
             </button>
             <button className="btn" onClick={() => setFormulaSheet(true)} title="Make or update an AI formula sheet from everything in this paper">
-              📐 Formula sheet
+              <Sigma size={15} /> Formula sheet
             </button>
             <button
               className="btn primary"
@@ -202,7 +204,7 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
                 if (paths.length) onUpload(paths);
               }}
             >
-              ⬆ Upload notes
+              <Upload size={15} /> Upload notes
             </button>
           </div>
         </header>
@@ -236,21 +238,21 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
         {formulaSheets.length > 0 && (
           <section className="category-section">
             <h2>
-              <span className="cat-icon">📐</span> Formula sheets
+              <span className="cat-icon"><Sigma size={16} /></span> Formula sheets
               <span className="cat-count">{formulaSheets.length}</span>
             </h2>
             <div className="doc-grid">
               {formulaSheets.map((f) => (
                 <div key={f.id} className="doc-card">
                   <div className="doc-main" onClick={() => setViewing({ title: f.title, absPath: f.absPath })} title="View formula sheet">
-                    <span className="doc-icon">📐</span>
+                    <span className="doc-icon"><Sigma size={22} /></span>
                     <div className="doc-meta">
                       <div className="doc-name">{f.title}</div>
                       <div className="doc-date">{SCOPE_LABEL[f.scope] || "Formula sheet"} · {fmtDate(f.createdAt)}</div>
                     </div>
                   </div>
                   <div className="doc-actions">
-                    <button className="btn tiny" onClick={() => setViewing({ title: f.title, absPath: f.absPath })}>📖 Open</button>
+                    <button className="btn tiny" onClick={() => setViewing({ title: f.title, absPath: f.absPath })}><BookOpen size={13} /> Open</button>
                     <button
                       className="btn tiny danger"
                       onClick={async () => {
@@ -284,7 +286,7 @@ export default function PaperView({ lib, paperId, refresh, onUpload }) {
               }}
             >
               <h2>
-                <span className="cat-icon">{CATEGORY_ICONS[cat] || "📁"}</span> {cat}
+                <span className="cat-icon"><CategoryIcon category={cat} size={16} /></span> {cat}
                 <span className="cat-count">{byCategory[cat].length}</span>
               </h2>
               <div className="doc-grid">

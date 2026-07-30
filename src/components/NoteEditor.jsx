@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { md } from "../util.js";
+import { NotebookPen, X } from "lucide-react";
 
 const api = window.uninote;
 
@@ -57,7 +58,7 @@ export default function NoteEditor({ doc, paperId, onClose }) {
       <div className="modal editor" onClick={(e) => e.stopPropagation()}>
         <div className="modal-titlebar">
           {noteDoc ? (
-            <h2>🗒️ {noteDoc.fileName}</h2>
+            <h2><NotebookPen size={18} /> {noteDoc.fileName}</h2>
           ) : (
             <input
               className="text-input title-input"
@@ -69,9 +70,9 @@ export default function NoteEditor({ doc, paperId, onClose }) {
           )}
           <div className="editor-status-row">
             <span className={`save-state ${saveState}`}>
-              {saveState === "saved" ? "Saved ✓" : saveState === "saving" ? "Saving…" : saveState === "error" ? "Save failed!" : "…"}
+              {saveState === "saved" ? "Saved" : saveState === "saving" ? "Saving…" : saveState === "error" ? "Save failed!" : "…"}
             </span>
-            <button className="btn tiny" onClick={close}>✕ Close</button>
+            <button className="btn tiny" onClick={close}><X size={13} /> Close</button>
           </div>
         </div>
         <div className="editor-split">

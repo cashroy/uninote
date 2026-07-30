@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { PencilLine } from "lucide-react";
 
 const api = window.uninote;
 
@@ -26,7 +27,7 @@ export default function AssignmentModal({ lib, filterSemId, onClose, refresh }) 
   return (
     <div className="modal-backdrop" onClick={() => !saving && onClose()}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>✍️ New assignment</h2>
+        <h2><PencilLine size={18} /> New assignment</h2>
         <p className="modal-sub">Add an assignment or exam. It shows up in Deadlines and on your Calendar, and can be exported.</p>
         <input className="text-input" placeholder="Name, e.g. STAT201 Assignment 2" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         <div className="field-row">

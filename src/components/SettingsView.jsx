@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { KeyRound, FolderOpen, RotateCw, Upload, Download, Check } from "lucide-react";
 
 const api = window.uninote;
 
@@ -37,7 +38,7 @@ export default function SettingsView({ settings, onSettingsChanged }) {
       if (p.stage === "started") setGraphMsg("Building knowledge graph… this can take a while.");
       else if (p.stage === "working") setGraphMsg("Building knowledge graph… (Claude is extracting)");
       else if (p.stage === "done") {
-        setGraphMsg("Graph built ✓");
+        setGraphMsg("Graph built");
         api.graphifyStatus().then(setGraph);
       } else if (p.stage === "error") setGraphMsg("Graph build failed: " + p.error);
     });
@@ -113,7 +114,7 @@ export default function SettingsView({ settings, onSettingsChanged }) {
     if (!update) return "";
     switch (update.status) {
       case "checking": return "Checking…";
-      case "none": return "You're on the latest version ✓";
+      case "none": return "You're on the latest version";
       case "available": return `Update available: ${update.version}`;
       case "downloading": return `Downloading… ${update.percent ?? 0}%`;
       case "ready": return `Update ${update.version} ready — restart to install`;
@@ -203,10 +204,10 @@ export default function SettingsView({ settings, onSettingsChanged }) {
             )}
             <div className="graph-actions">
               <button className="btn primary" disabled={!!syncBusy} onClick={() => backup(false)}>
-                {syncBusy === "pushing" ? "Backing up…" : "⬆ Back up now"}
+                {syncBusy === "pushing" ? "Backing up…" : <><Upload size={15} /> Back up now</>}
               </button>{" "}
               <button className="btn" disabled={!!syncBusy || !acct.hasRemote} onClick={restore}>
-                {syncBusy === "pulling" ? "Restoring…" : "⬇ Restore on this device"}
+                {syncBusy === "pulling" ? "Restoring…" : <><Download size={15} /> Restore on this device</>}
               </button>{" "}
               <button className="btn" disabled={!!syncBusy} onClick={signOutGithub}>Sign out</button>
             </div>
@@ -260,7 +261,7 @@ export default function SettingsView({ settings, onSettingsChanged }) {
           <input type="radio" checked={backend === "gemini"} onChange={() => setBackend("gemini")} />
           <span>
             <strong>Google Gemini</strong> — free Google AI Studio API key
-            {settings.hasGeminiKey ? " (key saved ✓)" : ""}
+            {settings.hasGeminiKey ? " (key saved)" : ""}
           </span>
         </label>
         {backend === "gemini" && (
@@ -276,7 +277,7 @@ export default function SettingsView({ settings, onSettingsChanged }) {
                 {gconn === "testing" ? "Checking…" : "Test key"}
               </button>
             </div>
-            {gconn === "ok" && <span className="key-ok"> ✓ Works</span>}
+            {gconn === "ok" && <span className="key-ok"><Check size={14} /> Works</span>}
             {gconn && gconn !== "ok" && gconn !== "testing" && <span className="key-err"> {gconn}</span>}
             <p className="hint">
               Model{" "}
@@ -294,11 +295,11 @@ export default function SettingsView({ settings, onSettingsChanged }) {
           {claudeCode?.available ? ` (detected ${claudeCode.version})` : claudeCode ? " (not found on this PC)" : ""}.
         </p>
         <div className="graph-actions">
-          <button className="btn" onClick={() => api.loginClaude()}>🔐 Log in / switch account</button>{" "}
+          <button className="btn" onClick={() => api.loginClaude()}><KeyRound size={15} /> Log in / switch account</button>{" "}
           <button className="btn" disabled={conn === "testing"} onClick={testConn}>
             {conn === "testing" ? "Checking…" : "Test connection"}
           </button>
-          {conn === "ok" && <span className="key-ok"> ✓ Connected</span>}
+          {conn === "ok" && <span className="key-ok"><Check size={14} /> Connected</span>}
           {conn && conn !== "ok" && conn !== "testing" && <span className="key-err"> {conn}</span>}
         </div>
       </section>
@@ -328,7 +329,7 @@ export default function SettingsView({ settings, onSettingsChanged }) {
             per question
             {graph
               ? graph.graphExists
-                ? " (graph ready ✓)"
+                ? " (graph ready)"
                 : graph.cliAvailable
                 ? " (graphify installed, graph not built yet)"
                 : " (graphify CLI not found — falls back to built-in)"
@@ -338,7 +339,7 @@ export default function SettingsView({ settings, onSettingsChanged }) {
         {indexMode === "graphify" && (
           <div className="graph-actions">
             <button className="btn" onClick={() => api.graphifyBuild()}>
-              {graph?.graphExists ? "↻ Update knowledge graph" : "Build knowledge graph now"}
+              {graph?.graphExists ? <><RotateCw size={14} /> Update knowledge graph</> : "Build knowledge graph now"}
             </button>
             {graphMsg && <span className="muted"> {graphMsg}</span>}
             <p className="hint">
@@ -369,12 +370,12 @@ export default function SettingsView({ settings, onSettingsChanged }) {
       <section className="settings-section">
         <h2>Library</h2>
         <p className="muted mono">{settings.libraryPath}</p>
-        <button className="btn" onClick={() => api.showInExplorer()}>📂 Show location in Explorer</button>
+        <button className="btn" onClick={() => api.showInExplorer()}><FolderOpen size={15} /> Show location in Explorer</button>
       </section>
 
       <div className="settings-save">
         <button className="btn primary" onClick={save}>Save settings</button>
-        {saved && <span className="key-ok"> ✓ Saved</span>}
+        {saved && <span className="key-ok"><Check size={14} /> Saved</span>}
       </div>
     </div>
   );

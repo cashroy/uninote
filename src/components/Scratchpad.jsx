@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Pin, Check } from "lucide-react";
 
 const api = window.uninote;
 
@@ -36,7 +37,7 @@ export default function Scratchpad({ paperId }) {
   if (!open) {
     return (
       <button className="scratch-tab" onClick={toggle} title="Open side notes">
-        📌 Side notes
+        <Pin size={14} /> Side notes
       </button>
     );
   }
@@ -44,9 +45,9 @@ export default function Scratchpad({ paperId }) {
   return (
     <div className="scratchpad">
       <div className="scratch-head">
-        <span>📌 Side notes</span>
+        <span><Pin size={14} /> Side notes</span>
         <span className={`save-state ${saveState}`}>
-          {saveState === "saved" ? "✓" : saveState === "saving" ? "…" : "•"}
+          {saveState === "saved" ? <Check size={12} /> : saveState === "saving" ? "…" : "•"}
         </span>
         <button className="btn tiny" onClick={toggle}>—</button>
       </div>

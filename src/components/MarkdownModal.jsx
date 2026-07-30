@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { md } from "../util.js";
+import { X } from "lucide-react";
 
 const api = window.uninote;
 
@@ -25,7 +26,7 @@ export default function MarkdownModal({ title, absPath, onClose }) {
             <button className="btn tiny" onClick={() => api.openFile(absPath)}>
               Open in default app
             </button>{" "}
-            <button className="btn tiny" onClick={onClose}>✕</button>
+            <button className="btn tiny" onClick={onClose}><X size={14} /></button>
           </div>
         </div>
         <div className="md-body" dangerouslySetInnerHTML={md(content || "Loading…")} />

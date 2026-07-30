@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { dueInfo, fmtDate } from "../util.js";
 import CreateTestModal from "./CreateTestModal.jsx";
 import AssignmentModal from "./AssignmentModal.jsx";
+import { PencilLine, ClipboardList, GraduationCap, TriangleAlert } from "lucide-react";
 
 const api = window.uninote;
 
@@ -22,7 +23,7 @@ export function collectDeadlines(lib) {
     const loc = paperLoc[d.paperId];
     items.push({
       kind: "assignment",
-      icon: "✍️",
+      icon: PencilLine,
       title: d.fileName,
       dueDate: d.dueDate,
       where: loc ? `${loc.label} · ${loc.code}` : "",
@@ -35,7 +36,7 @@ export function collectDeadlines(lib) {
     const semLocT = semLoc[t.semesterId];
     items.push({
       kind: "test",
-      icon: "📝",
+      icon: ClipboardList,
       title: t.name,
       dueDate: t.dueDate,
       where: loc ? `${loc.label} · ${loc.code}` : semLocT ? semLocT.label : "",
@@ -50,7 +51,7 @@ export function collectDeadlines(lib) {
     const semLocA = a.semesterId ? semLoc[a.semesterId] : null;
     items.push({
       kind: a.kind === "exam" ? "exam" : "assignment",
-      icon: a.kind === "exam" ? "🎓" : "✍️",
+      icon: a.kind === "exam" ? GraduationCap : PencilLine,
       title: a.name,
       dueDate: a.dueDate,
       assignmentId: a.id,
@@ -65,12 +66,13 @@ export function collectDeadlines(lib) {
 
 export function DeadlineRow({ item, setSel, onDelete }) {
   const info = dueInfo(item.dueDate);
+  const Icon = item.icon;
   return (
     <div
       className={`deadline-row ${info.overdue ? "overdue" : ""}`}
       onClick={() => setSel(item.nav)}
     >
-      <span className="deadline-icon">{item.icon}</span>
+      <span className="deadline-icon">{Icon ? <Icon size={18} /> : null}</span>
       <div className="deadline-main">
         <div className="deadline-title">{item.title}</div>
         <div className="deadline-where">{item.where}</div>
@@ -108,8 +110,8 @@ export default function DeadlinesView({ lib, setSel, refresh }) {
           <h1>Deadlines</h1>
         </div>
         <div className="header-actions">
-          <button className="btn" onClick={() => setShowAssignment(true)}>✍️ New assignment</button>
-          <button className="btn primary" onClick={() => setShowCreate(true)}>📝 New test</button>
+          <button className="btn" onClick={() => setShowAssignment(true)}><PencilLine size={15} /> New assignment</button>
+          <button className="btn primary" onClick={() => setShowCreate(true)}><ClipboardList size={15} /> New test</button>
         </div>
       </header>
 
@@ -125,7 +127,7 @@ export default function DeadlinesView({ lib, setSel, refresh }) {
 
       {overdue.length > 0 && (
         <section className="category-section">
-          <h2>⚠️ Overdue</h2>
+          <h2><TriangleAlert size={18} /> Overdue</h2>
           <div className="deadline-list">
             {overdue.map((i, k) => <DeadlineRow key={k} item={i} setSel={setSel} onDelete={delAssignment} />)}
           </div>

@@ -105,24 +105,5 @@ export function gradeCard(state, grade) {
 
 export const WEEKS = Array.from({ length: 16 }, (_, i) => i + 1);
 
-export function fileIcon(fileName) {
-  const ext = (fileName.split(".").pop() || "").toLowerCase();
-  if (ext === "pdf") return "📕";
-  if (ext === "docx" || ext === "doc") return "📘";
-  if (ext === "pptx" || ext === "ppt") return "📙";
-  if (ext === "md" || ext === "txt") return "📝";
-  if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) return "🖼️";
-  return "📄";
-}
-
-export const CATEGORY_ICONS = {
-  Notes: "🗒️",
-  "Lecture Notes": "🎓",
-  Workshops: "🛠️",
-  Tutorials: "🧭",
-  Assignments: "✍️",
-  Labs: "🔬",
-  Readings: "📖",
-  "Past Papers": "🗂️",
-  Other: "📦",
-};
+// File- and category-type icons moved to src/icons.jsx as real SVG components
+// (FileIcon / CategoryIcon). Import them from there instead of emoji strings.

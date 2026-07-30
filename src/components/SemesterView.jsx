@@ -3,6 +3,7 @@ import { fmtDate, dueInfo } from "../util.js";
 import MarkdownModal from "./MarkdownModal.jsx";
 import CreateTestModal from "./CreateTestModal.jsx";
 import AssignmentModal from "./AssignmentModal.jsx";
+import { PencilLine, ClipboardList, BookOpen, SquarePen, RotateCw, Sparkles } from "lucide-react";
 
 const api = window.uninote;
 
@@ -46,9 +47,9 @@ export default function SemesterView({ lib, semId, refresh, setSel }) {
           <h1>{sem.name}</h1>
         </div>
         <div className="header-actions">
-          <button className="btn" onClick={() => setShowAssignment(true)}>✍️ New assignment</button>
+          <button className="btn" onClick={() => setShowAssignment(true)}><PencilLine size={15} /> New assignment</button>
           <button className="btn primary" onClick={() => setShowCreate(true)}>
-            📝 Create test
+            <ClipboardList size={15} /> Create test
           </button>
         </div>
       </header>
@@ -122,11 +123,11 @@ export default function SemesterView({ lib, semId, refresh, setSel }) {
                       className="btn tiny"
                       onClick={() => setViewing({ title: `${t.name} — Study Material`, absPath: t.materialPath })}
                     >
-                      📖 Open study material
+                      <BookOpen size={13} /> Open study material
                     </button>
                   )}
                   <button className="btn tiny" onClick={() => setEditingTest(t)}>
-                    ✏️ Edit / add material
+                    <SquarePen size={13} /> Edit / add material
                   </button>
                   <button
                     className={`btn tiny ${t.materialPath ? "" : "primary"}`}
@@ -136,7 +137,7 @@ export default function SemesterView({ lib, semId, refresh, setSel }) {
                   >
                     {generating[t.id]
                       ? "Claude is working…"
-                      : t.materialPath ? "↻ Regenerate" : "✨ Generate study material"}
+                      : t.materialPath ? <><RotateCw size={13} /> Regenerate</> : <><Sparkles size={13} /> Generate study material</>}
                   </button>
                   <button
                     className="btn tiny danger"

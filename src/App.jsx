@@ -15,6 +15,7 @@ import ChatPanel from "./components/ChatPanel.jsx";
 import IngestFlow from "./components/IngestFlow.jsx";
 import WindowControls from "./components/WindowControls.jsx";
 import UpdateNotice from "./components/UpdateNotice.jsx";
+import { Download } from "lucide-react";
 import { setDateFormat } from "./util.js";
 
 const api = window.uninote;
@@ -194,7 +195,7 @@ export default function App() {
       {dropActive && (
         <div className="drop-overlay">
           <div className="drop-overlay-inner">
-            <div className="drop-icon">⬇️</div>
+            <div className="drop-icon"><Download size={40} /></div>
             <h2>Drop your files</h2>
             <p>They'll be classified by Claude and filed automatically.</p>
           </div>

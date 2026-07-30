@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Sparkles } from "lucide-react";
 
 const api = window.uninote;
 
@@ -37,7 +38,7 @@ export default function SummarizeDialog({ docs, onClose }) {
   return (
     <div className="modal-backdrop" onClick={() => !running && onClose()}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>✨ Summarise with Claude</h2>
+        <h2><Sparkles size={18} /> Summarise with Claude</h2>
         <p className="modal-sub">
           {docs.length === 1
             ? <>Create a paired summary for <strong>{docs[0].fileName}</strong>.</>

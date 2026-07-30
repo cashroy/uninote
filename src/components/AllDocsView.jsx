@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { fileIcon, fmtDate, CATEGORY_ICONS } from "../util.js";
+import { fmtDate } from "../util.js";
+import { FileIcon, CategoryIcon } from "../icons.jsx";
 import DocumentViewer from "./DocumentViewer.jsx";
 
 // A single place to browse every document in the library, across all papers.
@@ -63,12 +64,12 @@ export default function AllDocsView({ lib, setSel }) {
             return (
               <div key={d.id} className="alldocs-row">
                 <span className="doc-icon" onClick={() => setViewing(d)}>
-                  {d.isNote ? "🗒️" : fileIcon(d.fileName)}
+                  <FileIcon fileName={d.fileName} isNote={d.isNote} size={20} />
                 </span>
                 <div className="alldocs-main" onClick={() => setViewing(d)}>
                   <div className="alldocs-name">{d.fileName}</div>
                   <div className="alldocs-sub">
-                    <span className="cat-tag">{CATEGORY_ICONS[d.category] || "📁"} {d.category}</span>
+                    <span className="cat-tag"><CategoryIcon category={d.category} size={13} /> {d.category}</span>
                     {d.week ? <span className="cat-tag">Week {d.week}</span> : null}
                     {l && (
                       <span

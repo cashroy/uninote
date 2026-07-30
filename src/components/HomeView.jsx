@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { collectDeadlines, DeadlineRow } from "./DeadlinesView.jsx";
+import { CalendarClock, Lightbulb, ArrowRight } from "lucide-react";
 
 export default function HomeView({ lib, setSel }) {
   const totalDocs = lib.docs.length;
@@ -25,9 +26,9 @@ export default function HomeView({ lib, setSel }) {
       {deadlines.length > 0 && (
         <section className="category-section">
           <h2>
-            🗓️ Coming up
+            <CalendarClock size={18} /> Coming up
             <button className="btn tiny see-all" onClick={() => setSel({ kind: "deadlines" })}>
-              See all →
+              See all <ArrowRight size={13} />
             </button>
           </h2>
           <div className="deadline-list">
@@ -61,7 +62,7 @@ export default function HomeView({ lib, setSel }) {
       )}
 
       <div className="home-tip">
-        💡 You can drop files anywhere, any time — even on this screen. Ask the assistant on the
+        <Lightbulb size={15} /> You can drop files anywhere, any time — even on this screen. Ask the assistant on the
         right about anything in your current location.
       </div>
     </div>

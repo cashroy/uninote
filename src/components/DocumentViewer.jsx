@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { md, fileIcon } from "../util.js";
+import { md } from "../util.js";
+import { FileIcon } from "../icons.jsx";
+import { X, StickyNote } from "lucide-react";
 
 const api = window.uninote;
 
@@ -109,17 +111,17 @@ export default function DocumentViewer({ doc, onClose }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="viewer2" onClick={(ev) => ev.stopPropagation()}>
         <div className="modal-titlebar viewer2-bar">
-          <h2>{fileIcon(doc.fileName)} {doc.fileName}</h2>
+          <h2><FileIcon fileName={doc.fileName} size={18} /> {doc.fileName}</h2>
           <div>
             <button className="btn tiny" onClick={() => api.openFile(doc.absPath)}>Open externally</button>{" "}
-            <button className="btn tiny" onClick={onClose}>✕</button>
+            <button className="btn tiny" onClick={onClose}><X size={14} /></button>
           </div>
         </div>
         <div className="viewer2-body">
           <div className={`viewer2-content ${isPdf ? "pdf" : ""}`}>{renderContent()}</div>
           <div className="viewer2-margin">
             <div className="viewer2-margin-head">
-              <span>📝 Margin notes</span>
+              <span><StickyNote size={14} /> Margin notes</span>
               <span className={`viewer2-saved ${noteSaved ? "ok" : ""}`}>{noteSaved ? "saved" : "saving…"}</span>
             </div>
             <textarea

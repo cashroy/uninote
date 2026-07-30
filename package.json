@@ -1,7 +1,7 @@
 {
   "name": "uninote",
   "productName": "UniNote",
-  "version": "1.16.0",
+  "version": "1.17.0",
   "description": "AI-powered university notes organiser",
   "author": "choco",
   "license": "MIT",
@@ -74,9 +74,12 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.93.0",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/ibm-plex-sans": "^5.3.0",
     "adm-zip": "^0.5.16",
     "electron-updater": "^6.6.2",
     "katex": "^0.16.47",
+    "lucide-react": "^1.28.0",
     "mammoth": "^1.11.0",
     "marked": "^15.0.12",
     "pdf-parse": "^1.1.1",

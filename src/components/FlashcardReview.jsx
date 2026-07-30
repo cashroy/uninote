@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { md, parseFlashcards, gradeCard } from "../util.js";
+import { Layers, PartyPopper, X } from "lucide-react";
 
 const api = window.uninote;
 
@@ -60,7 +61,7 @@ export default function FlashcardReview({ summary, onClose }) {
     return (
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal" onClick={(e) => e.stopPropagation()}>
-          <h2>🃏 Flashcards</h2>
+          <h2><Layers size={18} /> Flashcards</h2>
           <p>Couldn't find any Q/A cards in this summary.</p>
           <div className="modal-actions">
             <button className="btn primary" onClick={onClose}>Close</button>
@@ -75,7 +76,7 @@ export default function FlashcardReview({ summary, onClose }) {
     return (
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal" onClick={(e) => e.stopPropagation()}>
-          <h2>🎉 Session complete</h2>
+          <h2><PartyPopper size={18} /> Session complete</h2>
           <p className="modal-sub">{total} reviews — again {counts.again} · hard {counts.hard} · good {counts.good} · easy {counts.easy}</p>
           <p className="muted">Cards you graded come back when they're due — harder cards sooner, easy ones later.</p>
           <div className="modal-actions">
@@ -93,10 +94,10 @@ export default function FlashcardReview({ summary, onClose }) {
     <div className="modal-backdrop">
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-titlebar">
-          <h2>🃏 {summary.fileName.replace(/\.md$/i, "")}</h2>
+          <h2><Layers size={18} /> {summary.fileName.replace(/\.md$/i, "")}</h2>
           <div className="editor-status-row">
             <span className="muted">{dueCount} left</span>
-            <button className="btn tiny" onClick={onClose}>✕</button>
+            <button className="btn tiny" onClick={onClose}><X size={14} /></button>
           </div>
         </div>
 

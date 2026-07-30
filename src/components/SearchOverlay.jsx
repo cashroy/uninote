@@ -1,17 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
+import { TypeIcon } from "../icons.jsx";
 
 const api = window.uninote;
-
-const TYPE_ICONS = {
-  year: "📅",
-  semester: "🗓️",
-  paper: "📚",
-  document: "📄",
-  note: "🗒️",
-  summary: "✨",
-  "side notes": "📌",
-  test: "📝",
-};
 
 export default function SearchOverlay({ onClose, onNavigate }) {
   const [query, setQuery] = useState("");
@@ -68,7 +58,7 @@ export default function SearchOverlay({ onClose, onNavigate }) {
               onMouseEnter={() => setActive(i)}
               onClick={() => go(r)}
             >
-              <span className="search-icon">{TYPE_ICONS[r.type] || "📄"}</span>
+              <span className="search-icon"><TypeIcon type={r.type} size={17} /></span>
               <div className="search-hit-main">
                 <div className="search-title">
                   {r.title} <span className="search-type">{r.type}</span>

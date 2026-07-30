@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Search, Calendar, CalendarClock, ListChecks, FileText, Settings, ChevronRight, ChevronDown } from "lucide-react";
 
 const api = window.uninote;
 
@@ -54,32 +55,32 @@ export default function Sidebar({ lib, sel, setSel, refresh, onSearch }) {
       </div>
 
       <button className="search-trigger" onClick={onSearch} title="Search everything (Ctrl+K)">
-        🔍 Search… <span className="kbd">Ctrl K</span>
+        <Search size={15} /> Search… <span className="kbd">Ctrl K</span>
       </button>
 
       <button
         className={`nav-btn deadline-nav ${sel.kind === "calendar" ? "active" : ""}`}
         onClick={() => setSel({ kind: "calendar" })}
       >
-        📅 Calendar
+        <Calendar size={17} /> Calendar
       </button>
       <button
         className={`nav-btn deadline-nav ${sel.kind === "deadlines" ? "active" : ""}`}
         onClick={() => setSel({ kind: "deadlines" })}
       >
-        🗓️ Deadlines
+        <CalendarClock size={17} /> Deadlines
       </button>
       <button
         className={`nav-btn deadline-nav ${sel.kind === "todos" ? "active" : ""}`}
         onClick={() => setSel({ kind: "todos" })}
       >
-        ✅ To-do
+        <ListChecks size={17} /> To-do
       </button>
       <button
         className={`nav-btn deadline-nav ${sel.kind === "alldocs" ? "active" : ""}`}
         onClick={() => setSel({ kind: "alldocs" })}
       >
-        📄 All documents
+        <FileText size={17} /> All documents
       </button>
 
       <div className="tree">
@@ -89,7 +90,7 @@ export default function Sidebar({ lib, sel, setSel, refresh, onSearch }) {
               className={`tree-row year ${sel.kind === "year" && sel.yearId === y.id ? "active" : ""}`}
             >
               <button className="chev" onClick={() => toggle(y.id)}>
-                {collapsed[y.id] ? "▸" : "▾"}
+                {collapsed[y.id] ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
               </button>
               <span
                 className="tree-label"
@@ -106,7 +107,7 @@ export default function Sidebar({ lib, sel, setSel, refresh, onSearch }) {
                       className={`tree-row sem ${sel.kind === "semester" && sel.semId === s.id ? "active" : ""}`}
                     >
                       <button className="chev" onClick={() => toggle(s.id)}>
-                        {collapsed[s.id] ? "▸" : "▾"}
+                        {collapsed[s.id] ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                       </button>
                       <span
                         className="tree-label"
@@ -172,7 +173,7 @@ export default function Sidebar({ lib, sel, setSel, refresh, onSearch }) {
           className={`nav-btn ${sel.kind === "settings" ? "active" : ""}`}
           onClick={() => setSel({ kind: "settings" })}
         >
-          ⚙️ Settings
+          <Settings size={17} /> Settings
         </button>
       </div>
     </aside>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { RotateCw, KeyRound, Check, ArrowRight } from "lucide-react";
 
 const api = window.uninote;
 
@@ -101,7 +102,7 @@ export default function Onboarding({ onDone }) {
                     {gstatus === "testing" ? "Checking…" : "Test key"}
                   </button>
                 </div>
-                {gstatus === "ok" && <div className="key-ok">✓ Connected to Gemini</div>}
+                {gstatus === "ok" && <div className="key-ok"><Check size={14} /> Connected to Gemini</div>}
                 {gstatus && gstatus !== "ok" && gstatus !== "testing" && <div className="key-err">{gstatus}</div>}
               </div>
             </div>
@@ -124,7 +125,7 @@ export default function Onboarding({ onDone }) {
                     Install Claude Code (the official Claude CLI) from{" "}
                     <span className="mono">claude.com/product/claude-code</span>, then re-check.
                     <br />
-                    <button className="btn small" onClick={recheck}>↻ Re-check</button>
+                    <button className="btn small" onClick={recheck}><RotateCw size={13} /> Re-check</button>
                   </p>
                 )}
                 {claudeCode.available && <p className="muted">Detected — you're ready to sign in.</p>}
@@ -136,7 +137,7 @@ export default function Onboarding({ onDone }) {
                 <div className="step-title">Sign in to your Claude account</div>
                 <p>Opens a terminal and your browser to log in. Do it once — UniNote remembers it.</p>
                 <button className="btn" disabled={!claudeCode.available} onClick={() => api.loginClaude()}>
-                  🔐 Log in to Claude
+                  <KeyRound size={15} /> Log in to Claude
                 </button>
               </div>
             </div>
@@ -147,7 +148,7 @@ export default function Onboarding({ onDone }) {
                 <button className="btn" disabled={!claudeCode.available || status === "testing"} onClick={testLogin}>
                   {status === "testing" ? "Checking…" : "Test connection"}
                 </button>
-                {status === "ok" && <div className="key-ok">✓ Connected to Claude</div>}
+                {status === "ok" && <div className="key-ok"><Check size={14} /> Connected to Claude</div>}
                 {status && status !== "ok" && status !== "testing" && (
                   <div className="key-err">{status} — finish logging in step 2, then retry.</div>
                 )}
@@ -158,12 +159,12 @@ export default function Onboarding({ onDone }) {
 
         {engine === "gemini" && (
           <button className="btn primary xl" disabled={gstatus !== "ok" || saving} onClick={finishGemini}>
-            {saving ? "Setting up…" : "Start taking notes →"}
+            {saving ? "Setting up…" : <>Start taking notes <ArrowRight size={15} /></>}
           </button>
         )}
         {engine === "claude" && (
           <button className="btn primary xl" disabled={status !== "ok" || saving} onClick={finishClaude}>
-            {saving ? "Setting up…" : "Start taking notes →"}
+            {saving ? "Setting up…" : <>Start taking notes <ArrowRight size={15} /></>}
           </button>
         )}
 

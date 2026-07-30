@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { collectDeadlines } from "./DeadlinesView.jsx";
 import { dueInfo, fmtDate } from "../util.js";
 import { COUNTRIES, UNIVERSITIES } from "../universities.js";
+import { Calendar, Plus, Flag, Download, Upload, Smartphone, Bot, GraduationCap, Pin, ChevronLeft, ChevronRight } from "lucide-react";
 
 const api = window.uninote;
 
@@ -81,7 +82,7 @@ function TimetableImport({ existing, onClose, onSaved }) {
   return (
     <div className="modal-backdrop" onClick={() => phase !== "parsing" && onClose()}>
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
-        <h2>📅 Import timetable</h2>
+        <h2><Calendar size={18} /> Import timetable</h2>
         {phase === "start" && (
           <>
             <p className="modal-sub">Upload your timetable and Claude reads the classes out of it. PDF, Excel, Word or text work best.</p>
@@ -401,7 +402,7 @@ export default function CalendarView({ lib, setSel, refresh }) {
     setPublishing(true); setGhNote("");
     const res = await api.publishCalendars();
     setPublishing(false);
-    if (!res.ok) { setGhNote("⚠️ " + res.error); return; }
+    if (!res.ok) { setGhNote(res.error); return; }
     setGh((g) => ({ hasToken: true, urls: { timetable: res.timetable, assessments: res.assessments } }));
     setGhNote("Published! Subscribe on your phone with the links below. Republish any time to update.");
   };
@@ -421,7 +422,7 @@ export default function CalendarView({ lib, setSel, refresh }) {
       `I study at ${uni}${where}. Set this semester's start and end dates (termStart and termEnd) and all mid-semester/term break dates for the current academic year. Keep my existing classes exactly as they are.`
     );
     setUniBusy(false);
-    if (!res.ok) { setUniNote("⚠️ " + res.error); return; }
+    if (!res.ok) { setUniNote(res.error); return; }
     setTt({ entries: res.entries, termStart: res.termStart, termEnd: res.termEnd, breaks: res.breaks });
     setUniNote(res.note || `Filled in semester and break dates for ${uni}.`);
   };
@@ -450,7 +451,7 @@ export default function CalendarView({ lib, setSel, refresh }) {
     setHolBusy(true); setCalNote("");
     const res = await api.fillPublicHolidays();
     setHolBusy(false);
-    if (!res.ok) { setCalNote("⚠️ " + res.error); return; }
+    if (!res.ok) { setCalNote(res.error); return; }
     await refresh();
     setCalNote(res.count ? `Added ${res.count} public holidays.` : "No public holidays found — check your country in Your university above.");
   };
@@ -491,7 +492,7 @@ export default function CalendarView({ lib, setSel, refresh }) {
     setNote("");
     const res = await api.assistTimetable(instruction);
     setAsking(false);
-    if (!res.ok) { setNote("⚠️ " + res.error); return; }
+    if (!res.ok) { setNote(res.error); return; }
     setTt({ entries: res.entries, termStart: res.termStart, termEnd: res.termEnd, breaks: res.breaks });
     setNote(res.note || "Done.");
     setAsk("");
@@ -511,9 +512,9 @@ export default function CalendarView({ lib, setSel, refresh }) {
       {/* month view */}
       <section className="category-section">
         <div className="cal-toolbar">
-          <button className="btn tiny" onClick={() => move(-1)}>‹</button>
+          <button className="btn tiny" onClick={() => move(-1)}><ChevronLeft size={16} /></button>
           <h2 className="cal-month">{MONTHS[cursor.getMonth()]} {cursor.getFullYear()}</h2>
-          <button className="btn tiny" onClick={() => move(1)}>›</button>
+          <button className="btn tiny" onClick={() => move(1)}><ChevronRight size={16} /></button>
           <button className="btn tiny" onClick={() => setCursor(new Date(today.getFullYear(), today.getMonth(), 1))}>Today</button>
           <div className="cal-legend">
             <span className="lg test">test</span>
@@ -526,11 +527,11 @@ export default function CalendarView({ lib, setSel, refresh }) {
             <input type="checkbox" checked={showTimetable} onChange={(e) => setShowTimetable(e.target.checked)} />
             Show timetable
           </label>
-          <button className="btn tiny" onClick={() => setAddingEvent(true)}>＋ Event</button>
-          <button className="btn tiny" disabled={holBusy} onClick={fillHolidays}>{holBusy ? "Fetching…" : "🎌 Public holidays"}</button>
+          <button className="btn tiny" onClick={() => setAddingEvent(true)}><Plus size={14} /> Event</button>
+          <button className="btn tiny" disabled={holBusy} onClick={fillHolidays}>{holBusy ? "Fetching…" : <><Flag size={14} /> Public holidays</>}</button>
           <span style={{ flex: 1 }} />
-          <button className="btn tiny" onClick={() => exportCal("timetable")}>⬇ Timetable .ics</button>
-          <button className="btn tiny" onClick={() => exportCal("assessments")}>⬇ Tests &amp; assignments .ics</button>
+          <button className="btn tiny" onClick={() => exportCal("timetable")}><Download size={14} /> Timetable .ics</button>
+          <button className="btn tiny" onClick={() => exportCal("assessments")}><Download size={14} /> Tests &amp; assignments .ics</button>
         </div>
         {calNote && <div className="tt-note">{calNote}</div>}
         <div className="cal-grid">
@@ -547,18 +548,19 @@ export default function CalendarView({ lib, setSel, refresh }) {
               <div key={i} className={`cal-cell ${inMonth ? "" : "dim"} ${isToday ? "today" : ""} ${brk || hol ? "break" : ""}`}>
                 <div className="cal-num">{d.getDate()}</div>
                 {brk && inMonth && <div className="cal-break">{brk.label || "Break"}</div>}
-                {hol && inMonth && <div className="cal-break">🎌 {hol.title}</div>}
+                {hol && inMonth && <div className="cal-break"><Flag size={12} /> {hol.title}</div>}
                 {deadlines.map((it, k) => {
                   const info = dueInfo(it.dueDate);
+                  const Icon = it.icon;
                   return (
                     <button key={"d" + k} className={`cal-chip ${it.kind} ${info?.overdue ? "overdue" : ""}`} title={`${it.title} — ${it.where}`} onClick={() => setSel(it.nav)}>
-                      {it.icon} {it.title}
+                      {Icon ? <Icon size={12} /> : null} {it.title}
                     </button>
                   );
                 })}
                 {events.map((ev) => (
                   <button key={ev.id} className="cal-chip event" title={`${ev.title}${ev.note ? " — " + ev.note : ""} (click to remove)`} onClick={() => deleteEvent(ev)}>
-                    📌 {ev.title}
+                    <Pin size={12} /> {ev.title}
                   </button>
                 ))}
                 {classes.map((c) => (
@@ -574,7 +576,7 @@ export default function CalendarView({ lib, setSel, refresh }) {
 
       {/* subscribe / publish to phone */}
       <section className="category-section">
-        <h2>📲 Subscribe on your phone</h2>
+        <h2><Smartphone size={18} /> Subscribe on your phone</h2>
         <p className="hint">
           Publish your calendars to a private GitHub gist and subscribe to the link on your phone —
           it refreshes automatically whenever you republish. Anyone with the link can view it, so
@@ -621,7 +623,7 @@ export default function CalendarView({ lib, setSel, refresh }) {
 
       {/* AI assistant */}
       <section className="category-section">
-        <h2>🤖 Ask Claude to adjust your timetable</h2>
+        <h2><Bot size={18} /> Ask Claude to adjust your timetable</h2>
         <div className="tt-assist">
           <input
             className="text-input"
@@ -645,7 +647,7 @@ export default function CalendarView({ lib, setSel, refresh }) {
 
       {/* university */}
       <section className="category-section">
-        <h2>🎓 Your university</h2>
+        <h2><GraduationCap size={18} /> Your university</h2>
         <p className="hint">
           Pick your university and UniNote asks your AI to fill in this semester's start, end and
           break dates. It won't change unless you choose a different one.
@@ -727,8 +729,8 @@ export default function CalendarView({ lib, setSel, refresh }) {
           {tt.entries.length > 0 && (
             <button className="btn tiny danger" onClick={async () => { if (confirm("Clear the whole timetable?")) { await api.saveTimetable([]); loadTT(); } }}>Clear all</button>
           )}
-          <button className="btn" onClick={() => setEditing("new")}>＋ Add class</button>
-          <button className="btn primary" onClick={() => setImporting(true)}>⬆ Import timetable</button>
+          <button className="btn" onClick={() => setEditing("new")}><Plus size={15} /> Add class</button>
+          <button className="btn primary" onClick={() => setImporting(true)}><Upload size={15} /> Import timetable</button>
         </div>
         {tt.entries.length === 0 ? (
           <div className="empty-state">

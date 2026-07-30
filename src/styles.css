@@ -1,8 +1,8 @@
 /* ---------- themes ---------- */
 :root {
   --radius: 10px;
-  --serif: Georgia, "Times New Roman", serif;
-  --sans: "Segoe UI", system-ui, sans-serif;
+  --serif: "Fraunces Variable", Georgia, "Times New Roman", serif;
+  --sans: "IBM Plex Sans Variable", "Segoe UI", system-ui, sans-serif;
 }
 
 /* Minimal black & white — the default */
@@ -77,6 +77,9 @@ body {
   color: var(--ink);
   background: var(--paper);
   font-size: 14px;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .loading {
@@ -833,3 +836,19 @@ body {
 .radio-row { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; cursor: pointer; font-size: 13.5px; }
 .graph-actions { margin-top: 10px; }
 .settings-save { margin-top: 6px; }
+
+/* ---------- icons (lucide) ---------- */
+/* Inline icons sit a hair below the text baseline; never let them shrink in flex. */
+.lucide { vertical-align: -0.14em; flex: none; }
+/* Buttons align an optional leading icon with their label. */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.nav-btn { display: flex; align-items: center; gap: 10px; }
+/* Headers that carry a leading icon. */
+.category-section h2, .settings-section h2, .modal h2 { display: flex; align-items: center; gap: 9px; }
+.category-section h2 .see-all { margin-left: auto; }
+/* Icon holders that were sized for emoji. */
+.deadline-icon, .doc-icon, .search-icon, .cat-icon { display: inline-flex; align-items: center; color: var(--ink-2); }
+.cat-tag { display: inline-flex; align-items: center; gap: 5px; }
+.chat-fab { display: inline-flex; align-items: center; justify-content: center; }
+.chat-fab .lucide, .drop-icon .lucide { vertical-align: 0; }
+.chat-error { display: flex; gap: 6px; align-items: flex-start; color: var(--danger); font-size: 13px; }

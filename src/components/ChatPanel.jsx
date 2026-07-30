@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { md } from "../util.js";
+import { MessageCircle, X, SendHorizontal, TriangleAlert } from "lucide-react";
 
 const api = window.uninote;
 let reqCounter = 0;
@@ -43,7 +44,7 @@ export default function ChatPanel({ open, setOpen, scope, scopeLabel, refresh })
       if (reqId !== activeReq.current) return;
       setMessages((ms) => {
         const copy = [...ms];
-        copy[copy.length - 1] = { role: "assistant", text: "⚠️ " + error, error: true };
+        copy[copy.length - 1] = { role: "assistant", text: error, error: true };
         return copy;
       });
       setBusy(false);
@@ -77,8 +78,8 @@ export default function ChatPanel({ open, setOpen, scope, scopeLabel, refresh })
 
   if (!open) {
     return (
-      <button className="chat-fab" onClick={() => setOpen(true)} title="Ask Claude">
-        💬
+      <button className="chat-fab" onClick={() => setOpen(true)} title="Ask AI">
+        <MessageCircle size={24} />
       </button>
     );
   }
@@ -90,7 +91,7 @@ export default function ChatPanel({ open, setOpen, scope, scopeLabel, refresh })
           <div className="chat-title">Ask AI</div>
           <div className="chat-scope">about: {scopeLabel}</div>
         </div>
-        <button className="btn tiny" onClick={() => setOpen(false)}>✕</button>
+        <button className="btn tiny" onClick={() => setOpen(false)}><X size={15} /></button>
       </div>
 
       <div className="chat-body" ref={bodyRef}>
@@ -106,12 +107,16 @@ export default function ChatPanel({ open, setOpen, scope, scopeLabel, refresh })
         {messages.map((m, i) => (
           <div key={i} className={`chat-msg ${m.role}`}>
             {m.role === "assistant" ? (
-              <>
-                <div className="chat-md" dangerouslySetInnerHTML={md(m.text || (m.streaming ? "…" : ""))} />
-                {m.contextSource === "graphify" && (
-                  <div className="chat-source">answered via knowledge graph</div>
-                )}
-              </>
+              m.error ? (
+                <div className="chat-error"><TriangleAlert size={15} /> <span>{m.text}</span></div>
+              ) : (
+                <>
+                  <div className="chat-md" dangerouslySetInnerHTML={md(m.text || (m.streaming ? "…" : ""))} />
+                  {m.contextSource === "graphify" && (
+                    <div className="chat-source">answered via knowledge graph</div>
+                  )}
+                </>
+              )
             ) : (
               m.text
             )}
@@ -133,7 +138,7 @@ export default function ChatPanel({ open, setOpen, scope, scopeLabel, refresh })
           disabled={busy}
         />
         <button className="btn primary" type="submit" disabled={busy || !input.trim()}>
-          ➤
+          <SendHorizontal size={16} />
         </button>
       </form>
     </aside>

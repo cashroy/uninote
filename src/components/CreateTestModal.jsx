@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { SquarePen, ClipboardList } from "lucide-react";
 
 const api = window.uninote;
 
@@ -47,7 +48,7 @@ export default function CreateTestModal({ lib, filterSemId, onClose, refresh, au
   return (
     <div className="modal-backdrop" onClick={() => !creating && onClose()}>
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
-        <h2>{editing ? "✏️ Edit test" : "📝 New test"}</h2>
+        <h2>{editing ? <><SquarePen size={18} /> Edit test</> : <><ClipboardList size={18} /> New test</>}</h2>
         <p className="modal-sub">
           A test covers one paper. Choosing material is optional — create the test now and add or
           change what it covers later, then generate. Anything already used in an earlier test is marked.
