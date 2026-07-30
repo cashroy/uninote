@@ -13,7 +13,9 @@ function isPortable() {
 }
 
 function canUpdate() {
-  return app.isPackaged && !isPortable();
+  // Only the Windows NSIS build self-updates. The Mac build is unsigned, and
+  // Squirrel.Mac refuses to update an unsigned app, so we don't wire it there.
+  return app.isPackaged && !isPortable() && process.platform === "win32";
 }
 
 function getUpdater() {

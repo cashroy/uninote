@@ -20,6 +20,10 @@ const DEFAULTS = {
   githubTokenPlain: null,
   gistId: null, // the gist the calendars live in (updated in place)
   gistOwner: "", // gist owner login, for building the raw subscribe URL
+  syncRepo: null, // "owner/uninote-library" once the library has synced
+  syncOwner: "", // GitHub login the library syncs under
+  lastSyncCommit: null, // commit sha of the last push/pull, for the clobber guard
+  lastSyncAt: null, // ISO timestamp of the last successful sync
 };
 
 function settingsPath() {

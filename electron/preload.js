@@ -7,6 +7,15 @@ const on = (channel) => (cb) => {
 };
 
 contextBridge.exposeInMainWorld("uninote", {
+  platform: process.platform,
+
+  // account / library sync (GitHub-backed)
+  syncStatus: () => ipcRenderer.invoke("sync:status"),
+  syncConnect: (token) => ipcRenderer.invoke("sync:connect", token),
+  syncPush: (opts) => ipcRenderer.invoke("sync:push", opts),
+  syncPull: () => ipcRenderer.invoke("sync:pull"),
+  syncDisconnect: () => ipcRenderer.invoke("sync:disconnect"),
+
   // settings / setup
   getSettings: () => ipcRenderer.invoke("settings:get"),
   saveSettings: (patch) => ipcRenderer.invoke("settings:save", patch),

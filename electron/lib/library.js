@@ -821,6 +821,7 @@ module.exports = {
   removeTimetableEntry,
   dayIndexOf,
   libRoot,
+  dbPath,
   ensureRoot,
   load,
   save,

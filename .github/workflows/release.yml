@@ -31,3 +31,28 @@ jobs:
         run: npx electron-builder --win --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  mac:
+    # Runs after Windows so the GitHub Release already exists; this job just
+    # attaches the Mac artifacts (.dmg/.zip) to the same tag's release.
+    needs: build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build renderer
+        run: npm run build:renderer
+
+      - name: Build and publish (Mac, unsigned)
+        run: npx electron-builder --mac --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Unsigned build: don't let electron-builder hunt for a signing identity.
+          CSC_IDENTITY_AUTO_DISCOVERY: false

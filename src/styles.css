@@ -110,6 +110,7 @@ body {
   background: var(--navy);
   -webkit-app-region: drag;
 }
+.titlebar.mac { padding-left: 78px; } /* clear the macOS traffic lights */
 .onboarding-titlebar { position: fixed; top: 0; left: 0; right: 0; z-index: 200; background: transparent; }
 .titlebar-drag-fill { flex: 1; }
 .win-controls { display: flex; -webkit-app-region: no-drag; }

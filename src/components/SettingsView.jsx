@@ -22,6 +22,10 @@ export default function SettingsView({ settings, onSettingsChanged }) {
   const [graphMsg, setGraphMsg] = useState("");
   const [saved, setSaved] = useState(false);
   const [update, setUpdate] = useState(null); // update status
+  const [acct, setAcct] = useState(null); // sync status: null while loading, then object
+  const [ghToken, setGhToken] = useState("");
+  const [syncBusy, setSyncBusy] = useState(""); // "" | "connecting" | "pushing" | "pulling"
+  const [syncMsg, setSyncMsg] = useState(null); // { kind: "ok"|"err"|"conflict", text }
 
   useEffect(() => {
     (async () => {
@@ -39,6 +43,63 @@ export default function SettingsView({ settings, onSettingsChanged }) {
     });
     return () => { offUpd(); offGraph(); };
   }, []);
+
+  useEffect(() => { api.syncStatus().then(setAcct); }, []);
+
+  const refreshAcct = async () => setAcct(await api.syncStatus());
+
+  const connectGithub = async () => {
+    setSyncBusy("connecting");
+    setSyncMsg(null);
+    const res = await api.syncConnect(ghToken.trim());
+    setSyncBusy("");
+    if (res.ok) {
+      setGhToken("");
+      setSyncMsg({ kind: "ok", text: `Signed in as @${res.login}. Your library syncs to ${res.repo}.` });
+      await refreshAcct();
+      onSettingsChanged();
+    } else {
+      setSyncMsg({ kind: "err", text: res.error || "Couldn't connect." });
+    }
+  };
+
+  const backup = async (force = false) => {
+    setSyncBusy("pushing");
+    setSyncMsg(null);
+    const res = await api.syncPush(force ? { force: true } : {});
+    setSyncBusy("");
+    if (res.ok) {
+      const big = res.skipped && res.skipped.length ? ` · ${res.skipped.length} oversized file(s) skipped` : "";
+      setSyncMsg({ kind: "ok", text: `Backed up ${res.files} file(s), ${res.uploaded} changed${big}.` });
+      await refreshAcct();
+    } else if (res.conflict) {
+      setSyncMsg({ kind: "conflict", text: res.note });
+    } else {
+      setSyncMsg({ kind: "err", text: res.error || "Back-up failed." });
+    }
+  };
+
+  const restore = async () => {
+    if (!confirm("Restore replaces this device's library with the account copy. Anything here that isn't backed up will be lost. Continue?")) return;
+    setSyncBusy("pulling");
+    setSyncMsg(null);
+    const res = await api.syncPull();
+    setSyncBusy("");
+    if (res.ok) {
+      setSyncMsg({ kind: "ok", text: `Restored ${res.files} file(s) — reloading…` });
+      setTimeout(() => window.location.reload(), 900);
+    } else {
+      setSyncMsg({ kind: "err", text: res.error || "Restore failed." });
+    }
+  };
+
+  const signOutGithub = async () => {
+    if (!confirm("Sign out of GitHub on this device? The account copy stays safe — this only stops syncing here (and disconnects calendar publishing).")) return;
+    await api.syncDisconnect();
+    setSyncMsg(null);
+    await refreshAcct();
+    onSettingsChanged();
+  };
 
   const checkUpdates = async () => {
     setUpdate({ status: "checking" });
@@ -98,6 +159,72 @@ export default function SettingsView({ settings, onSettingsChanged }) {
           <h1>Settings</h1>
         </div>
       </header>
+
+      <section className="settings-section">
+        <h2>Account &amp; sync</h2>
+        {!acct && <p className="muted">Checking…</p>}
+
+        {acct && !acct.connected && (
+          <>
+            <p className="muted">
+              Sign in with GitHub to back up your whole library and use it on another device.
+              UniNote syncs to a <strong>private</strong> repo it creates for you — nothing is public,
+              and your token is stored encrypted on this device only.
+            </p>
+            <div className="key-row">
+              <input
+                type="password"
+                placeholder="Paste a GitHub token (repo scope)"
+                value={ghToken}
+                onChange={(e) => { setGhToken(e.target.value); setSyncMsg(null); }}
+              />
+              <button className="btn primary" disabled={!ghToken.trim() || syncBusy === "connecting"} onClick={connectGithub}>
+                {syncBusy === "connecting" ? "Connecting…" : "Sign in with GitHub"}
+              </button>
+            </div>
+            <p className="hint">
+              Create one at github.com/settings/tokens → “Generate new token (classic)” → tick{" "}
+              <code>repo</code>. (The same token also powers calendar publishing.)
+            </p>
+          </>
+        )}
+
+        {acct && acct.connected && (
+          <>
+            <p className="muted">
+              Signed in as <strong>@{acct.login}</strong> · syncing to{" "}
+              <span className="mono">{acct.repo}</span>
+              {acct.lastSyncAt ? ` · last synced ${new Date(acct.lastSyncAt).toLocaleString()}` : " · not synced yet"}.
+            </p>
+            {acct.remoteAhead && (
+              <p className="key-err">
+                Another device has newer changes in the account — Restore to pull them in before backing up.
+              </p>
+            )}
+            <div className="graph-actions">
+              <button className="btn primary" disabled={!!syncBusy} onClick={() => backup(false)}>
+                {syncBusy === "pushing" ? "Backing up…" : "⬆ Back up now"}
+              </button>{" "}
+              <button className="btn" disabled={!!syncBusy || !acct.hasRemote} onClick={restore}>
+                {syncBusy === "pulling" ? "Restoring…" : "⬇ Restore on this device"}
+              </button>{" "}
+              <button className="btn" disabled={!!syncBusy} onClick={signOutGithub}>Sign out</button>
+            </div>
+            {!acct.hasRemote && (
+              <p className="hint">Nothing in the account yet — Back up to create the first copy, then Restore from your other device.</p>
+            )}
+          </>
+        )}
+
+        {syncMsg && (
+          <p className={syncMsg.kind === "ok" ? "key-ok" : "key-err"} style={{ display: "block", marginTop: 8 }}>
+            {syncMsg.text}
+            {syncMsg.kind === "conflict" && (
+              <button className="btn tiny" style={{ marginLeft: 8 }} onClick={() => backup(true)}>Force back-up</button>
+            )}
+          </p>
+        )}
+      </section>
 
       <section className="settings-section">
         <h2>Appearance</h2>

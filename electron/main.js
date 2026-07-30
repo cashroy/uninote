@@ -10,6 +10,7 @@ const graphify = require("./lib/graphify");
 const search = require("./lib/search");
 const updater = require("./lib/updater");
 const publish = require("./lib/publish");
+const sync = require("./lib/sync");
 
 let win;
 
@@ -21,7 +22,12 @@ function createWindow() {
     minHeight: 640,
     backgroundColor: "#ffffff",
     title: "UniNote",
-    frame: false, // custom seamless titlebar drawn in the renderer
+    // Windows/Linux: a fully frameless window with our own titlebar buttons.
+    // macOS: keep the native traffic lights (inset over our titlebar) so the app
+    // is closable and feels native — the renderer hides its own buttons there.
+    ...(process.platform === "darwin"
+      ? { titleBarStyle: "hiddenInset", trafficLightPosition: { x: 14, y: 9 } }
+      : { frame: false }),
     icon: path.join(__dirname, "..", "build", "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -118,6 +124,23 @@ ipcMain.handle("settings:save", (_e, patch) => {
   store.saveSettings(rest);
   return true;
 });
+
+// ---- account / library sync (GitHub-backed) -----------------------------------
+
+ipcMain.handle("sync:status", () => sync.status());
+ipcMain.handle("sync:connect", async (_e, token) => {
+  try { return await sync.connect(String(token || "").trim()); }
+  catch (err) { return { ok: false, error: err.message || String(err) }; }
+});
+ipcMain.handle("sync:push", async (_e, opts) => {
+  try { return await sync.push(opts || {}); }
+  catch (err) { return { ok: false, error: err.message || String(err) }; }
+});
+ipcMain.handle("sync:pull", async () => {
+  try { return await sync.pull(); }
+  catch (err) { return { ok: false, error: err.message || String(err) }; }
+});
+ipcMain.handle("sync:disconnect", () => sync.disconnect());
 
 ipcMain.handle("setup:checkClaudeCode", () => claude.checkClaudeCode());
 ipcMain.handle("setup:testApiKey", (_e, key) => claude.testApiKey(key));

@@ -170,9 +170,9 @@ export default function App() {
 
   return (
     <div className="app">
-      <div className="titlebar">
+      <div className={`titlebar ${api.platform === "darwin" ? "mac" : ""}`}>
         <div className="titlebar-drag-fill" />
-        <WindowControls />
+        {api.platform !== "darwin" && <WindowControls />}
       </div>
       <div className="app-body">
         <Sidebar

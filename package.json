@@ -1,7 +1,7 @@
 {
   "name": "uninote",
   "productName": "UniNote",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "description": "AI-powered university notes organiser",
   "author": "choco",
   "license": "MIT",
@@ -45,6 +45,22 @@
           "arch": "x64"
         }
       ]
+    },
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.education",
+      "identity": null,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": "universal"
+        },
+        {
+          "target": "zip",
+          "arch": "universal"
+        }
+      ],
+      "artifactName": "UniNote-${version}-${arch}.${ext}"
     },
     "portable": {
       "artifactName": "UniNote-Portable-${version}.exe"
