@@ -105,6 +105,7 @@ function getGeminiKey() {
 }
 
 function setGithubToken(key) {
+  key = key && String(key).trim();
   if (!key) {
     saveSettings({ githubTokenEnc: null, githubTokenPlain: null });
     return;

@@ -2,6 +2,8 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
+const { Readable } = require("stream");
+const { pipeline } = require("stream/promises");
 const store = require("./store");
 const library = require("./library");
 
@@ -45,6 +47,51 @@ async function ghFetch(pathname, opts, token) {
     throw new Error(`GitHub ${res.status}: ${String(msg).slice(0, 200)}`);
   }
   return res.json();
+}
+
+// Retry a network operation a few times, but only on transient failures — a bad
+// token or a missing object should fail fast, not be hammered.
+async function withRetry(fn, tries = 4) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try { return await fn(); }
+    catch (e) {
+      lastErr = e;
+      const transient = /terminated|checksum mismatch|ECONNRESET|ETIMEDOUT|EPIPE|network|fetch failed|socket hang up|other side closed/i;
+      if (!transient.test(e && e.message)) throw e;
+      await new Promise((r) => setTimeout(r, 500 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
+// Stream a git blob's raw bytes straight to disk. Asking for the raw media type
+// (instead of the default base64-JSON envelope) means big files aren't inflated
+// ~33% and parsed into a single JS string — which is what triggers undici's
+// "terminated" on large restores. We write to a .part file, verify it hashes to
+// the sha we asked for, then atomically rename, so a truncated download can never
+// clobber good local data.
+async function downloadBlob(owner, sha, dest, token) {
+  const res = await fetch(`${API}/repos/${owner}/${REPO}/git/blobs/${sha}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github.raw",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+  if (!res.ok || !res.body) {
+    let msg = res.ok ? "empty response body" : await res.text().catch(() => res.statusText);
+    try { msg = JSON.parse(msg).message || msg; } catch {}
+    throw new Error(`GitHub ${res.status}: ${String(msg).slice(0, 200)}`);
+  }
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  const tmp = `${dest}.part`;
+  await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(tmp));
+  if (gitBlobSha(fs.readFileSync(tmp)) !== sha) {
+    try { fs.unlinkSync(tmp); } catch {}
+    throw new Error("checksum mismatch"); // transient → retried by withRetry
+  }
+  fs.renameSync(tmp, dest);
 }
 
 // git's blob object id: sha1("blob <len>\0<bytes>"). Matches what GitHub stores,
@@ -271,10 +318,7 @@ async function pull() {
     const local = repoToLocal(repoPath);
     if (!local) continue; // unknown/unsafe path — skip
     if (fs.existsSync(local) && gitBlobSha(fs.readFileSync(local)) === sha) continue; // already current
-    const blob = await ghFetch(`/repos/${owner}/${REPO}/git/blobs/${sha}`, {}, token);
-    const buf = Buffer.from(blob.content, blob.encoding === "base64" ? "base64" : "utf8");
-    fs.mkdirSync(path.dirname(local), { recursive: true });
-    fs.writeFileSync(local, buf);
+    await withRetry(() => downloadBlob(owner, sha, local, token));
     downloaded++;
   }
 
