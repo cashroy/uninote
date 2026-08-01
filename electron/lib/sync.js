@@ -87,7 +87,10 @@ async function remoteHead(token, owner) {
     const ref = await ghFetch(`/repos/${owner}/${REPO}/git/ref/heads/${BRANCH}`, {}, token);
     return ref.object.sha;
   } catch (e) {
-    if (/GitHub 404/.test(e.message)) return null; // empty or missing repo
+    // 404 = the repo or ref doesn't exist; 409 = the repo exists but has no
+    // commits yet ("Git Repository is empty"). Both mean there's no head yet —
+    // i.e. this is the first back-up — so start a fresh history.
+    if (/GitHub 40[49]/.test(e.message)) return null;
     throw e;
   }
 }
